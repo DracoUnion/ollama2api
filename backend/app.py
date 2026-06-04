@@ -1,4 +1,5 @@
 from flask import Flask
+import config
 
 app = Flask(__name__)
 
@@ -9,4 +10,4 @@ def hello():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host=config.HOST, port=config.PORT, debug=True)
