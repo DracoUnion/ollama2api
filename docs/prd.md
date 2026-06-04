@@ -69,7 +69,8 @@ Ollama 可在一台机器或不同服务器上运行多个实例，每个实例�
 - `POST /api/nodes` 添加新节点（需提供 URL，可选模型列表）
 - `PUT /api/nodes/<id>` 更新节点（如 URL、启用状态）
 - `DELETE /api/nodes/<id>` 删除节点
-- `GET /api/nodes/<id>/models` 手动触发 Ollama 的 `/api/tags` 获取该节点的模型列表，并更新到 `models` 字段
+- `POST /api/nodes/<id>/refresh` 刷新节点模型列表（调用 Ollama `/api/tags`）
+- `POST /api/nodes/<id>/pull` 拉取模型到指定节点（调用 Ollama `/api/pull`，支持流式进度）
 
 - `GET /api/mappings` 获取模型映射表
 - `POST /api/mappings` 添加或更新映射（指定虚拟名称和实际模型名）

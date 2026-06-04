@@ -358,7 +358,7 @@ data: [DONE]
 
 #### 2.2.6 测试节点连通性
 
-**节点**：`POST /api/nodes/<node_id>/test`
+**节点**：`GET /api/nodes/<node_id>/test`
 
 **功能**：测试 Ollama 节点是否可达（调用 `/api/tags` 并等待响应）。
 
@@ -382,6 +382,60 @@ data: [DONE]
   "msg": "Connection refused"
 }
 ```
+
+#### 2.2.7 拉取模型
+
+**节点**：`POST /api/nodes/<node_id>/pull`
+
+**功能**：调用指定 Ollama 节点的 `POST /api/pull` 接口，拉取指定模型到该节点。支持同步等待完成或流式返回进度。
+
+**请求体**：
+
+```json
+{
+  "model_name": "llama3:7b",
+  "stream": false
+}
+```
+
+- `model_name`（必填）：要拉取的模型名称（含标签，如 `llama3:7b`、`qwen2:latest`）。
+- `stream`（可选，默认 `false`）：是否以 SSE 流形式实时返回拉取进度。
+
+**响应 — 同步模式**（`stream: false`，等待拉取完成后返回）：
+
+```json
+{
+  "code": 0,
+  "data": {
+    "model_name": "llama3:7b",
+    "status": "success"
+  },
+  "msg": ""
+}
+```
+
+**响应 — 流式模式**（`stream: true`，Content-Type: text/event-stream）：
+
+逐条推送 Ollama 返回的进度事件，格式与 Ollama `/api/pull` 一致：
+
+```
+data: {"status":"pulling manifest"}
+
+data: {"status":"pulling abc123...","digest":"sha256:abc123...","total":4567890,"completed":1234567}
+
+data: {"status":"verifying sha256 digest"}
+
+data: {"status":"writing manifest"}
+
+data: {"status":"success"}
+```
+
+拉取完成后连接关闭。前端可据此展示进度条。
+
+**错误**：
+- 缺少 `model_name`：`{"code": 400, "data": null, "msg": "Missing model_name"}`
+- 无法连接节点：`{"code": 400, "data": null, "msg": "Cannot connect to node"}`
+- Ollama 返回错误（如模型不存在）：`{"code": 502, "data": null, "msg": "Ollama error: model not found"}`
 
 ### 2.3 模型映射管理
 

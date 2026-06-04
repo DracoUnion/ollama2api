@@ -77,7 +77,7 @@
 
 ### 2.3 NodesPage（节点管理）
 
-**功能**：增删改查 Ollama 后端节点，查看/刷新模型列表，测试连通性。
+**功能**：增删改查 Ollama 后端节点，查看/刷新模型列表，测试连通性，拉取模型。
 
 **子组件**：
 - `NodeFilterBar`: 筛选控件
@@ -86,16 +86,20 @@
   - URL 关键词搜索输入框
 - `NodeList`: 表格展示节点列表（分页）
   - 每行包含：URL、启用开关、健康状态（图标）、模型数量、操作按钮
-  - 操作：编辑、删除、刷新模型、测试连接
+  - 操作：编辑、删除、刷新模型、测试连接、拉取模型
 - `Pagination`: 分页组件
 - `NodeFormModal`: 添加/编辑节点的弹窗表单（URL、备注、启用状态）
 - `RefreshModelsButton`: 针对单个节点的刷新按钮，触发刷新并更新模型列表
 - `TestConnectionButton`: 测试连接，显示成功/失败 Toast
+- `PullModelModal`: 拉取模型弹窗
+  - 模型名称输入框（如 `llama3:7b`、`qwen2:latest`）
+  - 拉取按钮、进度条（流式模式下实时展示 Ollama 返回的拉取进度）
 
 **交互流程**：
 - 点击添加 → 弹出 `NodeFormModal` → 提交 → 刷新列表
 - 点击刷新模型 → 调用 POST `/api/nodes/{id}/refresh` → 更新表格中的”模型列表”列
 - 测试连接 → 调用 POST `/api/nodes/{id}/test` → 显示结果
+- 点击拉取模型 → 弹出 `PullModelModal` → 输入模型名 → 调用 POST `/api/nodes/{id}/pull`（stream=true）→ 实时展示进度 → 完成后可刷新模型列表
 - 筛选/翻页 → 调用 `GET /api/nodes?page=x&size=y&enabled=...&healthy=...&keyword=...` → 更新表格
 
 ### 2.4 MappingsPage（模型映射）
@@ -249,7 +253,8 @@ App
 │     │  ├─ NodeList (Table)
 │     │  │  └─ NodeActions (Buttons)
 │     │  ├─ Pagination
-│     │  └─ NodeFormModal
+│     │  ├─ NodeFormModal
+│     │  └─ PullModelModal
 │     ├─ MappingsPage
 │     │  ├─ MappingTable
 │     │  │  └─ MappingActions
@@ -313,6 +318,15 @@ export const nodesApi = {
   delete: (id) => apiClient.delete(`/nodes/${id}`),
   refreshModels: (id) => apiClient.post(`/nodes/${id}/refresh`),
   test: (id) => apiClient.post(`/nodes/${id}/test`),
+  pull: (id, modelName, stream) =>
+    stream
+      ? fetch(`/api/nodes/${id}/pull`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ model_name: modelName, stream: true }),
+        })  // 返回 ReadableStream，逐行解析 SSE
+      : apiClient.post(`/nodes/${id}/pull`, { model_name: modelName, stream: false }),
 };
 // ... 其他 API 模块
 ```
