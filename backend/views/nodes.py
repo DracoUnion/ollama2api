@@ -110,6 +110,13 @@ def create_node():
         created_at=datetime.now()
     )
 
+    model_names = call_ollama_tags(req.url)
+    for model_name in model_names:
+        node_model = NodeModel(node_id=node.id, model_name=model_name)
+        db.add(node_model)
+    node.healthy = True
+    node.last_health_check = datetime.now()
+
     db.add(node)
     db.commit()
     db.refresh(node)
@@ -117,44 +124,6 @@ def create_node():
     return success(node.to_dict())
 
 
-@nodes_bp.route("/<node_id>", methods=["PUT"])
-@require_auth
-def update_node(node_id):
-    """
-    更新节点
-
-    请求体（所有字段可选）:
-    - url: 节点 URL
-    - enabled: 是否启用
-    """
-    data = request.get_json()
-    if not data:
-        raise BadRequestError("请求体必须是 JSON")
-
-    req = NodeUpdateRequest(**data)
-
-    db = Session()
-
-    # 查询节点
-    node = db.query(Node).filter(Node.id == node_id).first()
-    if not node:
-        raise NotFoundError("节点不存在")
-
-    # 更新字段
-    if req.url is not None:
-        # 检查 URL 是否与其他节点冲突
-        existing = db.query(Node).filter(Node.url == req.url, Node.id != node_id).first()
-        if existing:
-            raise ConflictError("URL 已被其他节点使用")
-        node.url = req.url
-
-    if req.enabled is not None:
-        node.enabled = req.enabled
-
-    db.commit()
-    db.refresh(node)
-
-    return success(node.to_dict())
 
 
 @nodes_bp.route("/<node_id>", methods=["DELETE"])
