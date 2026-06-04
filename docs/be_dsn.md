@@ -10,7 +10,7 @@
 
 **节点**：`POST /v1/chat/completions`
 
-**功能**：接收 OpenAI 格式的聊天请求，根据模型映射随机选择一个 Ollama 后端，转换后调用 Ollama `/api/chat`，并返回 OpenAI 格式响应（支持流式/非流式）。
+**功能**：接收 OpenAI 格式的聊天请求，根据模型映射查找实际模型名，再从所有健康节点中随机选择一个拥有该模型的节点，转换后调用 Ollama `/api/chat`，并返回 OpenAI 格式响应（支持流式/非流式）。
 
 **请求头**：
 - `Authorization: Bearer <api_key>`（如果启用了 API Key 校验）
@@ -139,10 +139,7 @@ data: [DONE]
 
 > 扩展字段（可选，用于前端展示更多信息）：
 > ```json
-> "x-backends": [
->   {"url": "http://10.0.0.1:11434", "model": "llama3:7b"},
->   {"url": "http://10.0.0.2:11434", "model": "qwen2:7b"}
-> ]
+> "x-actual-model": "llama3:7b"
 > ```
 
 ---
@@ -235,7 +232,7 @@ data: [DONE]
 
 **响应**（204 No Content）
 
-> 注意：删除节点时，相关的模型映射中的条目应自动移除（或保留但标记为无效，由前端/后端逻辑处理）。
+> 注意：由于模型映射仅涉及模型名称，不绑定具体节点，删除节点不影响已有映射。
 
 #### 2.1.5 刷新节点模型列表
 
@@ -281,6 +278,8 @@ data: [DONE]
 
 ### 2.2 模型映射管理
 
+> 模型映射仅涉及两个模型名称之间的对应关系（虚拟模型名 → 实际模型名），不绑定具体节点。转发时系统自动从所有健康节点中查找拥有该实际模型的节点。
+
 #### 2.2.1 获取所有映射
 
 **节点**：`GET /api/mappings`
@@ -289,13 +288,8 @@ data: [DONE]
 
 ```json
 {
-  "gpt-3.5-turbo": [
-    { "node_id": "ep_1", "model_name": "llama3:7b" },
-    { "node_id": "ep_2", "model_name": "qwen2:7b" }
-  ],
-  "claude-instant": [
-    { "node_id": "ep_1", "model_name": "mistral:7b" }
-  ]
+  "gpt-3.5-turbo": "llama3:7b",
+  "claude-instant": "mistral:7b"
 }
 ```
 
@@ -308,27 +302,20 @@ data: [DONE]
 ```json
 {
   "virtual_name": "gpt-3.5-turbo",
-  "targets": [
-    { "node_id": "ep_1", "model_name": "llama3:7b" },
-    { "node_id": "ep_2", "model_name": "llama3:7b" }   // 相同模型名不同后端
-  ]
+  "actual_model_name": "llama3:7b"
 }
 ```
 
-- 如果 `virtual_name` 已存在，则覆盖其 `targets`。
-- 如果 `targets` 为空数组，表示删除该虚拟模型的映射（等同于 DELETE）。
+- 如果 `virtual_name` 已存在，则覆盖其 `actual_model_name`。
 
 **响应**（200 OK）：
 
 ```json
 {
   "virtual_name": "gpt-3.5-turbo",
-  "targets": [ ... ]
+  "actual_model_name": "llama3:7b"
 }
 ```
-
-**错误**：
-- 400：`targets` 中引用的 `node_id` 不存在，或 `model_name` 不在该节点的 `models` 列表中（警告但不强制拒绝，可由系统自动修复）
 
 #### 2.2.3 删除映射
 
@@ -520,11 +507,8 @@ data: [DONE]
 - PRIMARY KEY (`node_id`, `model_name`)
 
 **model_mappings**
-- `virtual_name` TEXT
-- `node_id` TEXT
-- `actual_model_name` TEXT
-- PRIMARY KEY (`virtual_name`, `node_id`, `actual_model_name`)
-- FOREIGN KEY (`node_id`) REFERENCES `nodes`(`id`)
+- `virtual_name` TEXT PRIMARY KEY
+- `actual_model_name` TEXT NOT NULL
 
 **request_logs**
 - `id` TEXT PRIMARY KEY
@@ -559,7 +543,7 @@ data: [DONE]
 | 401 | 未提供 API Key 或 Key 无效 |
 | 404 | 请求的资源不存在（如节点 ID 不存在） |
 | 409 | 资源冲突（如重复添加相同 URL 的节点） |
-| 422 | 语义错误（如映射引用了不存在的节点 ID） |
+| 422 | 语义错误 |
 | 500 | 代理服务内部错误 |
 | 502 | 选中的 Ollama 后端返回无效响应 |
 | 503 | 所有可用后端均不可达，或模型映射为空 |

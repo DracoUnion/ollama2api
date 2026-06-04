@@ -37,7 +37,7 @@
 | `/` | `DashboardPage` | 重定向到 `/dashboard` |
 | `/dashboard` | `DashboardPage` | 展示整体统计、健康状态 |
 | `/nodes` | `NodesPage` | 管理 Ollama 后端列表 |
-| `/mappings` | `MappingsPage` | 管理虚拟模型 ↔ 实际后端映射 |
+| `/mappings` | `MappingsPage` | 管理虚拟模型名 ↔ 实际模型名映射 |
 | `/playground` | `PlaygroundPage` | 聊天测试界面 |
 | `/logs` | `LogsPage` | 日志列表及详情 |
 | `/settings` | `SettingsPage` | 全局参数配置 |
@@ -77,20 +77,18 @@
 
 ### 2.3 MappingsPage（模型映射）
 
-**功能**：管理虚拟模型名到实际后端+模型的映射关系（多对多）。
+**功能**：管理虚拟模型名到实际模型名的映射关系（一对一名称映射，不涉及具体节点）。
 
 **子组件**：
-- `MappingTable`: 表格展示所有虚拟模型的映射
-  - 列：虚拟模型名、实际目标列表（显示为多个标签）、操作（编辑、删除）
-- `MappingFormModal`: 添加/编辑映射的复杂表单
+- `MappingTable`: 表格展示所有映射
+  - 列：虚拟模型名、实际模型名、操作（编辑、删除）
+- `MappingFormModal`: 添加/编辑映射的表单
   - 虚拟模型名输入（文本框）
-  - 实际目标列表：支持动态添加多行，每行选择 `node` + 该节点的 `model_name`
-  - 可用节点及模型数据从 `GET /api/nodes` 获取（展开每个节点的 models 列表）
+  - 实际模型名输入（文本框）
 - `DeleteMappingConfirm`: 删除前的确认弹窗
 
 **数据加载**：
-- 首次加载：并行获取 `GET /api/mappings` 和 `GET /api/nodes`
-- 构建选择器：将节点按 `node_id` 分组，展示每个节点下已刷新的模型列表。
+- 首次加载：获取 `GET /api/mappings`
 
 ### 2.4 PlaygroundPage（测试聊天室）
 
@@ -224,7 +222,6 @@ App
 │     │  ├─ MappingTable
 │     │  │  └─ MappingActions
 │     │  └─ MappingFormModal
-│     │     └─ TargetRow (动态列表)
 │     ├─ PlaygroundPage
 │     │  ├─ ModelSelector
 │     │  ├─ ChatMessageList

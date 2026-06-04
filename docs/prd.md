@@ -8,7 +8,7 @@ Ollama 可在一台机器或不同服务器上运行多个实例，每个实例�
 
 ### 1.2 目标
 - **多后端管理**：支持添加、删除、编辑多个 Ollama 服务地址（URL），自动或手动获取每个后端支持的模型列表。
-- **灵活映射**：允许将“虚拟模型名”（OpenAI API 中使用的名称）映射到【一个或多个】实际模型（每个实际模型由“后端 URL + 模型名称”唯一确定）。
+- **灵活映射**：允许将”虚拟模型名”（OpenAI API 中使用的名称）映射到一个实际模型名。映射仅涉及名称对应关系，不绑定具体节点；转发时系统自动从所有健康节点中查找拥有该实际模型的节点。
 - **随机转发**：当一个虚拟模型对应多个后端实例时，每次请求随机选择一个可用后端，实现轻量负载均衡。
 - **兼容性与可观测性**：保持 OpenAI API 格式转换，提供日志记录每次请求被转发到哪个后端。
 
@@ -21,14 +21,11 @@ Ollama 可在一台机器或不同服务器上运行多个实例，每个实例�
 
 **转发决策流程**：
 1. 接收 OpenAI 格式请求，提取 `model` 字段（虚拟模型名）。
-2. 查询模型映射表：`虚拟模型名 → 实际目标列表`。
-   - 实际目标结构：`{ node_id 或直接 URL, actual_model_name }`
-3. 若该虚拟模型存在一个或多个实际目标：
-   - 从列表中**随机选择**一个目标（使用 `random.choice`）。
-   - 使用该目标的 URL 和实际模型名调用 Ollama API。
+2. 查询模型映射表：`虚拟模型名 → 实际模型名`。
+3. 若存在映射，得到实际模型名后，从所有健康节点中查找拥有该实际模型的节点列表，**随机选择**一个转发。
 4. 若不存在映射：
-   - 可配置行为：① 返回错误（模型不存在）；② 遍历所有后端，查找是否有同名模型（actual_model_name 等于虚拟模型名），若有则随机选择一个后端并转发（透传模型名）。
-5. 如果选中的后端不可达（连接失败或超时），是否需要重试？简化：直接返回 502，并记录日志。高级版可实现自动重试另一个随机后端（可选，根据需求决定）。
+   - 可配置行为：① 返回错误（模型不存在）；② 将虚拟模型名当作实际模型名，遍历所有健康节点查找是否有同名模型，若有则随机选择一个转发（透传模式）。
+5. 如果选中的节点不可达（连接失败或超时），可自动重试其他候选节点（最多 N 次），全部失败返回 503。
 
 #### 2.1.2 多节点配置管理
 数据结构设计（存储在配置文件或 SQLite 中）：
@@ -52,13 +49,8 @@ Ollama 可在一台机器或不同服务器上运行多个实例，每个实例�
     }
   ],
   "model_mapping": {
-    "gpt-3.5-turbo": [
-      { "node_id": "ep_1", "model_name": "llama3:7b" },
-      { "node_id": "ep_2", "model_name": "qwen2:7b" }
-    ],
-    "claude-instant": [
-      { "node_id": "ep_1", "model_name": "mistral:7b" }
-    ]
+    "gpt-3.5-turbo": "llama3:7b",
+    "claude-instant": "mistral:7b"
   },
   "global": {
     "api_key_enabled": false,
@@ -76,7 +68,7 @@ Ollama 可在一台机器或不同服务器上运行多个实例，每个实例�
 - `GET /api/nodes/<id>/models` 手动触发 Ollama 的 `/api/tags` 获取该节点的模型列表，并更新到 `models` 字段
 
 - `GET /api/mappings` 获取模型映射表
-- `POST /api/mappings` 添加或更新映射（指定虚拟名称，以及一个或多个实际目标）
+- `POST /api/mappings` 添加或更新映射（指定虚拟名称和实际模型名）
 - `DELETE /api/mappings/<virtual_name>` 删除映射
 
 **健康检查**：后台线程定期（如每 30 秒）探测所有节点的 `/api/tags` 接口，更新 `healthy` 状态。转发时若随机选中不健康的节点，可跳过并重选（最多 N 次）。
@@ -103,11 +95,10 @@ Ollama 可在一台机器或不同服务器上运行多个实例，每个实例�
 - 显示每个节点已知的模型（标签形式）。
 
 **Tab2：模型映射**
-- 以表格形式展示虚拟模型名 → 实际目标列表（多对多）。
-- 添加映射：选择虚拟模型名（可新建），然后选择一个或多个“实际目标”（从已有的节点+模型组合中选择）。
-- 编辑映射：可修改实际目标列表（增加/删除目标项）。
+- 以表格形式展示虚拟模型名 → 实际模型名（一对一对映）。
+- 添加映射：输入虚拟模型名和实际模型名。
+- 编辑映射：修改实际模型名。
 - 删除映射。
-- 对于每个虚拟模型，可看到对应的多个实际目标，用户可手动调整优先级顺序？按需求是随机，但可保留顺序供将来扩展。
 
 #### 2.2.3 测试聊天室
 - 选择虚拟模型名（从映射表中选择）进行对话。
@@ -122,7 +113,7 @@ Ollama 可在一台机器或不同服务器上运行多个实例，每个实例�
 原 PRD 使用简单的 config.py 全局变量，现在需要持久化保存多节点及映射。建议使用 **SQLite**（轻量，无需额外依赖）或 JSON 文件（简单但并发写需注意）。推荐 SQLite + SQLAlchemy（ORM）或直接使用 sqlite3 模块。核心表：
 - `nodes`: id, url, enabled, healthy, last_check, metadata
 - `node_models`: node_id, model_name (一对多)
-- `model_mappings`: virtual_name, node_id, actual_model_name (联合主键)
+- `model_mappings`: virtual_name (主键), actual_model_name
 
 或者为了简化，仍然使用 JSON 文件加文件锁，适合小规模部署。
 
@@ -130,20 +121,19 @@ Ollama 可在一台机器或不同服务器上运行多个实例，每个实例�
 ```python
 import random
 def resolve_target(virtual_model):
-    targets = mapping.get(virtual_model, [])
-    if not targets:
+    # 查映射表：虚拟模型名 → 实际模型名
+    actual_model = mapping.get(virtual_model)
+    if actual_model is None:
         if global_default_passthrough:
-            # 获取所有健康节点的所有模型，查找与 virtual_model 同名的
-            candidates = [(ep.url, virtual_model) for ep in nodes if ep.healthy and virtual_model in ep.models]
-            return random.choice(candidates) if candidates else None
+            actual_model = virtual_model  # 透传：用原名当作实际模型名
         else:
             return None
-    # 过滤掉不健康的节点
-    healthy_targets = [t for t in targets if get_node(t.node_id).healthy]
-    if not healthy_targets:
-        # 可选：返回任意一个不健康的（记录警告）
-        healthy_targets = targets
-    return random.choice(healthy_targets)
+    # 从所有健康节点中查找拥有该实际模型的节点
+    candidates = [ep for ep in nodes if ep.healthy and actual_model in ep.models]
+    if not candidates:
+        return None
+    chosen = random.choice(candidates)
+    return (chosen.url, actual_model)
 ```
 
 ### 3.3 后端自省获取模型列表
@@ -184,10 +174,8 @@ Ollama 提供 `GET /api/tags`，返回 `{"models":[{"name":"llama3:7b",...}]}`�
 **GET /api/mappings** 响应：
 ```json
 {
-  "gpt-3.5-turbo": [
-    { "node_id": "ep_1", "model_name": "llama3:7b" },
-    { "node_id": "ep_2", "model_name": "qwen2:7b" }
-  ]
+  "gpt-3.5-turbo": "llama3:7b",
+  "claude-instant": "mistral:7b"
 }
 ```
 
@@ -195,10 +183,7 @@ Ollama 提供 `GET /api/tags`，返回 `{"models":[{"name":"llama3:7b",...}]}`�
 ```json
 {
   "virtual_name": "gpt-3.5-turbo",
-  "targets": [
-    { "node_id": "ep_1", "model_name": "llama3:7b" },
-    { "node_id": "ep_2", "model_name": "llama3:7b" }
-  ]
+  "actual_model_name": "llama3:7b"
 }
 ```
 若已存在映射则覆盖。删除映射使用 DELETE。
@@ -217,7 +202,7 @@ Ollama 提供 `GET /api/tags`，返回 `{"models":[{"name":"llama3:7b",...}]}`�
 | 2 | 后端管理 API（CRUD nodes + mappings） | 4h |
 | 3 | 健康检查后台任务、容错重试 | 2h |
 | 4 | 前端：节点管理页面（列表、添加、刷新模型） | 3h |
-| 5 | 前端：模型映射页面（多对多配置界面） | 3h |
+| 5 | 前端：模型映射页面（简单名称映射配置） | 2h |
 | 6 | 前端：仪表盘显示多节点健康状态 | 2h |
 | 7 | 测试聊天室显示实际后端信息 | 1h |
 | 8 | 日志记录增强、联调 | 3h |
@@ -225,7 +210,7 @@ Ollama 提供 `GET /api/tags`，返回 `{"models":[{"name":"llama3:7b",...}]}`�
 
 ## 7. 验收标准补充
 
-1. 可通过前端添加两个 Ollama 后端（如本机不同端口或远程），配置模型映射：`my-model` 对应后端A的`modelX`和后端B的`modelY`。
-2. 连续多次调用 `my-model`，观察日志确认请求随机分散到两个后端。
+1. 可通过前端添加两个 Ollama 后端（如本机不同端口或远程），配置模型映射：`my-model` → `modelX`。若两个后端均有 `modelX`，则请求自动随机分散到两个后端。
+2. 连续多次调用 `my-model`，观察日志确认请求随机分散到拥有该模型的多个后端。
 3. 手动禁用其中一个后端（停止服务），应用健康检查标记其为不健康，之后的请求不再转发到该后端（若无其他可用后端则失败）。
-4. 刷新模型列表功能：当 Ollama 端新增模型，前节点击刷新后，该节点的模型列表更新，且可用于后续映射配置。
+4. 刷新模型列表功能：当 Ollama 端新增模型，前端点击刷新后，该节点的模型列表更新，可用于后续映射配置。
