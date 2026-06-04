@@ -110,7 +110,7 @@ class RequestLog(Base):
 from config import DATABASE_URL
 
 engine = create_engine(DATABASE_URL, echo=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db():
@@ -118,10 +118,6 @@ def init_db():
     Base.metadata.create_all(bind=engine)
 
 
-def get_db():
+def get_db_session():
     """获取数据库会话"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    return Session()

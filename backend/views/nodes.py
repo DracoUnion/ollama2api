@@ -1,114 +1,21 @@
 import csv
 import io
-import uuid
 from datetime import datetime
 from urllib.parse import urlparse
 
 import requests
 from flask import Blueprint, request, Response
-from pydantic import BaseModel, Field, validator
-from typing import Optional
 
-from models import Node, NodeModel, get_db
-from .exceptions import (
+from views.common import success, generate_node_id, call_ollama_tags
+from models import Node, NodeModel, Session
+from views.exceptions import (
     BadRequestError, NotFoundError, ConflictError,
     BadGatewayError, ServiceUnavailableError
 )
-from .auth import require_auth
+from views.auth import require_auth
+from views.reqs import NodeCreateRequest, NodeUpdateRequest, NodePullRequest
 
 nodes_bp = Blueprint("nodes", __name__, url_prefix="/api/nodes")
-
-# ==================== Pydantic 模型 ====================
-
-class NodeCreateRequest(BaseModel):
-    """创建节点请求"""
-    url: str = Field(..., description="节点 URL")
-    enabled: bool = Field(True, description="是否启用")
-
-    @validator("url")
-    def validate_url(cls, v):
-        if not v or not v.strip():
-            raise ValueError("URL 不能为空")
-        try:
-            result = urlparse(v.strip())
-            if not all([result.scheme, result.netloc]):
-                raise ValueError("URL 格式无效")
-            if result.scheme not in ("http", "https"):
-                raise ValueError("URL scheme 必须是 http 或 https")
-        except ValueError:
-            raise
-        except Exception:
-            raise ValueError("URL 格式无效")
-        return v.strip()
-
-
-class NodeUpdateRequest(BaseModel):
-    """更新节点请求"""
-    url: Optional[str] = Field(None, description="节点 URL")
-    enabled: Optional[bool] = Field(None, description="是否启用")
-
-    @validator("url")
-    def validate_url(cls, v):
-        if v is not None:
-            if not v.strip():
-                raise ValueError("URL 不能为空")
-            try:
-                result = urlparse(v.strip())
-                if not all([result.scheme, result.netloc]):
-                    raise ValueError("URL 格式无效")
-                if result.scheme not in ("http", "https"):
-                    raise ValueError("URL scheme 必须是 http 或 https")
-            except ValueError:
-                raise
-            except Exception:
-                raise ValueError("URL 格式无效")
-            return v.strip()
-        return v
-
-
-class NodePullRequest(BaseModel):
-    """拉取模型请求"""
-    model_name: str = Field(..., description="模型名称")
-    stream: bool = Field(False, description="是否流式返回")
-
-    @validator("model_name")
-    def validate_model_name(cls, v):
-        if not v or not v.strip():
-            raise ValueError("model_name 不能为空")
-        return v.strip()
-
-
-# ==================== 工具函数 ====================
-
-def generate_node_id() -> str:
-    """生成节点 ID"""
-    return f"ep_{uuid.uuid4().hex[:8]}"
-
-
-def success(data=None, msg=""):
-    """统一成功响应"""
-    return {"code": 0, "data": data, "msg": msg}
-
-
-def get_db_session():
-    """获取数据库会话"""
-    return next(get_db())
-
-
-def call_ollama_tags(url: str, timeout: int = 10):
-    """调用 Ollama /api/tags 获取模型列表"""
-    try:
-        response = requests.get(f"{url}/api/tags", timeout=timeout)
-        response.raise_for_status()
-        data = response.json()
-        models = data.get("models", [])
-        return [m.get("name", "") for m in models if m.get("name")]
-    except requests.exceptions.ConnectionError:
-        raise ServiceUnavailableError("无法连接节点")
-    except requests.exceptions.Timeout:
-        raise ServiceUnavailableError("节点连接超时")
-    except requests.exceptions.RequestException as e:
-        raise ServiceUnavailableError(f"Ollama 服务不可用: {str(e)}")
 
 
 # ==================== 视图函数 ====================
@@ -137,7 +44,7 @@ def list_nodes():
     healthy = request.args.get("healthy")
     keyword = request.args.get("keyword")
 
-    db = get_db_session()
+    db = Session()
 
     # 构建查询
     query = db.query(Node)
@@ -187,7 +94,7 @@ def create_node():
 
     req = NodeCreateRequest(**data)
 
-    db = get_db_session()
+    db = Session()
 
     # 检查 URL 是否已存在
     existing = db.query(Node).filter(Node.url == req.url).first()
@@ -226,7 +133,7 @@ def update_node(node_id):
 
     req = NodeUpdateRequest(**data)
 
-    db = get_db_session()
+    db = Session()
 
     # 查询节点
     node = db.query(Node).filter(Node.id == node_id).first()
@@ -254,7 +161,7 @@ def update_node(node_id):
 @require_auth
 def delete_node(node_id):
     """删除节点"""
-    db = get_db_session()
+    db = Session()
 
     # 查询节点
     node = db.query(Node).filter(Node.id == node_id).first()
@@ -276,7 +183,7 @@ def refresh_node_models(node_id):
 
     调用 Ollama 的 /api/tags 获取该节点当前可用模型，更新到 node_models 表。
     """
-    db = get_db_session()
+    db = Session()
 
     # 查询节点
     node = db.query(Node).filter(Node.id == node_id).first()
@@ -311,7 +218,7 @@ def test_node(node_id):
 
     调用 Ollama 的 /api/tags 测试节点是否可达。
     """
-    db = get_db_session()
+    db = Session()
 
     # 查询节点
     node = db.query(Node).filter(Node.id == node_id).first()
@@ -340,7 +247,7 @@ def pull_model(node_id):
 
     req = NodePullRequest(**data)
 
-    db = get_db_session()
+    db = Session()
 
     # 查询节点
     node = db.query(Node).filter(Node.id == node_id).first()
@@ -435,7 +342,7 @@ def import_nodes():
     if column not in csv_reader.fieldnames:
         raise BadRequestError(f"CSV 中不存在列 '{column}'")
 
-    db = get_db_session()
+    db = Session()
 
     # 统计数据
     total = 0
