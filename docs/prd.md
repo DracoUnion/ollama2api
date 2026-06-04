@@ -61,7 +61,7 @@ Ollama 可在一台机器或不同服务器上运行多个实例，每个实例�
 ```
 
 **运行时配置接口**：
-- `GET /api/nodes` 获取所有节点列表
+- `GET /api/nodes` 获取节点列表（支持分页、筛选）
 - `POST /api/nodes` 添加新节点（需提供 URL，可选模型列表）
 - `PUT /api/nodes/<id>` 更新节点（如 URL、启用状态）
 - `DELETE /api/nodes/<id>` 删除节点
@@ -146,18 +146,23 @@ Ollama 提供 `GET /api/tags`，返回 `{"models":[{"name":"llama3:7b",...}]}`�
 
 ### 4.1 后端管理接口示例
 
-**GET /api/nodes** 响应：
+**GET /api/nodes** 响应（支持查询参数 `page`、`size`、`enabled`、`healthy`、`keyword`）：
 ```json
-[
-  {
-    "id": "ep_1",
-    "url": "http://10.0.0.1:11434",
-    "enabled": true,
-    "healthy": true,
-    "models": ["llama3:7b", "mistral:7b"],
-    "last_health_check": "2025-..."
-  }
-]
+{
+  "total": 5,
+  "page": 1,
+  "size": 20,
+  "data": [
+    {
+      "id": "ep_1",
+      "url": "http://10.0.0.1:11434",
+      "enabled": true,
+      "healthy": true,
+      "models": ["llama3:7b", "mistral:7b"],
+      "last_health_check": "2025-..."
+    }
+  ]
+}
 ```
 
 **POST /api/nodes** 请求：

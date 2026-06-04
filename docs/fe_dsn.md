@@ -63,17 +63,23 @@
 **功能**：增删改查 Ollama 后端节点，查看/刷新模型列表，测试连通性。
 
 **子组件**：
-- `NodeList`: 表格展示所有节点
+- `NodeFilterBar`: 筛选控件
+  - 启用状态下拉（全部/启用/禁用）
+  - 健康状态下拉（全部/健康/不健康）
+  - URL 关键词搜索输入框
+- `NodeList`: 表格展示节点列表（分页）
   - 每行包含：URL、启用开关、健康状态（图标）、模型数量、操作按钮
   - 操作：编辑、删除、刷新模型、测试连接
+- `Pagination`: 分页组件
 - `NodeFormModal`: 添加/编辑节点的弹窗表单（URL、备注、启用状态）
 - `RefreshModelsButton`: 针对单个节点的刷新按钮，触发刷新并更新模型列表
 - `TestConnectionButton`: 测试连接，显示成功/失败 Toast
 
 **交互流程**：
 - 点击添加 → 弹出 `NodeFormModal` → 提交 → 刷新列表
-- 点击刷新模型 → 调用 POST `/api/nodes/{id}/refresh` → 更新表格中的“模型列表”列
+- 点击刷新模型 → 调用 POST `/api/nodes/{id}/refresh` → 更新表格中的”模型列表”列
 - 测试连接 → 调用 POST `/api/nodes/{id}/test` → 显示结果
+- 筛选/翻页 → 调用 `GET /api/nodes?page=x&size=y&enabled=...&healthy=...&keyword=...` → 更新表格
 
 ### 2.3 MappingsPage（模型映射）
 
@@ -165,10 +171,13 @@ const useAppStore = create((set) => ({
   globalConfig: { apiKeyEnabled: false, defaultPassthrough: true, ... },
   setGlobalConfig: (config) => set({ globalConfig: config }),
 
-  // 节点列表
+  // 节点列表（分页）
   nodes: [],
-  setNodes: (eps) => set({ nodes: eps }),
-  addNode: (ep) => set((state) => ({ nodes: [...state.nodes, ep] })),
+  nodesTotal: 0,
+  nodesPage: 1,
+  nodesSize: 20,
+  setNodes: (data, total, page, size) => set({ nodes: data, nodesTotal: total, nodesPage: page, nodesSize: size }),
+  addNode: (ep) => set((state) => ({ nodes: [...state.nodes, ep], nodesTotal: state.nodesTotal + 1 })),
   updateNode: (id, updates) => ...,
   deleteNode: (id) => ...,
 
@@ -215,8 +224,10 @@ App
 │     │  ├─ StatsChart (Recharts)
 │     │  └─ ModelUsageTable
 │     ├─ NodesPage
+│     │  ├─ NodeFilterBar
 │     │  ├─ NodeList (Table)
 │     │  │  └─ NodeActions (Buttons)
+│     │  ├─ Pagination
 │     │  └─ NodeFormModal
 │     ├─ MappingsPage
 │     │  ├─ MappingTable

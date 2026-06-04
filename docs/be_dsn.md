@@ -155,29 +155,41 @@ data: [DONE]
 
 **节点**：`GET /api/nodes`
 
+**查询参数**：
+- `page`：页码（默认 1）
+- `size`：每页条数（默认 20，最大 100）
+- `enabled`：按启用状态筛选（`true`/`false`，可选）
+- `healthy`：按健康状态筛选（`true`/`false`，可选）
+- `keyword`：按 URL 模糊搜索（可选）
+
 **响应**（200 OK）：
 
 ```json
-[
-  {
-    "id": "ep_1",
-    "url": "http://192.168.1.10:11434",
-    "enabled": true,
-    "healthy": true,
-    "models": ["llama3:7b", "mistral:7b"],
-    "last_health_check": "2025-06-03T10:30:00Z",
-    "created_at": "2025-06-01T00:00:00Z"
-  },
-  {
-    "id": "ep_2",
-    "url": "http://localhost:11434",
-    "enabled": true,
-    "healthy": false,
-    "models": [],
-    "last_health_check": "2025-06-03T10:29:55Z",
-    "created_at": "2025-06-02T00:00:00Z"
-  }
-]
+{
+  "total": 5,
+  "page": 1,
+  "size": 20,
+  "data": [
+    {
+      "id": "ep_1",
+      "url": "http://192.168.1.10:11434",
+      "enabled": true,
+      "healthy": true,
+      "models": ["llama3:7b", "mistral:7b"],
+      "last_health_check": "2025-06-03T10:30:00Z",
+      "created_at": "2025-06-01T00:00:00Z"
+    },
+    {
+      "id": "ep_2",
+      "url": "http://localhost:11434",
+      "enabled": true,
+      "healthy": false,
+      "models": [],
+      "last_health_check": "2025-06-03T10:29:55Z",
+      "created_at": "2025-06-02T00:00:00Z"
+    }
+  ]
+}
 ```
 
 #### 2.1.2 添加节点
