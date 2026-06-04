@@ -155,11 +155,55 @@ data: [DONE]
 ## 二、管理 API
 
 > **前缀**：`/api`（与代理节点区分）
-> **认证**：可选，建议在管理接口也支持 API Key（与 OpenAI 节点使用相同 key），或独立配置管理密码。
+> **认证**：Cookie 校验。通过 `/api/login` 登录后获得 Session Cookie，后续所有管理接口请求需携带该 Cookie。未登录返回 401。
 
-### 2.1 后端节点管理
+### 2.1 登录与登出
 
-#### 2.1.1 获取所有节点
+#### 2.1.1 登录
+
+**节点**：`POST /api/login`
+
+**请求体**：
+
+```json
+{
+  "password": "admin-secret"
+}
+```
+
+**响应**（200 OK）：
+
+```json
+{
+  "success": true,
+  "message": "Login successful"
+}
+```
+
+服务端验证密码成功后，设置 Session Cookie（如 `session_id`），后续管理接口请求自动携带该 Cookie 进行身份校验。
+
+**错误**：
+- 400：缺少 `password` 字段
+- 401：密码错误
+
+#### 2.1.2 登出
+
+**节点**：`POST /api/logout`
+
+**响应**（200 OK）：
+
+```json
+{
+  "success": true,
+  "message": "Logout successful"
+}
+```
+
+服务端清除 Session Cookie。
+
+### 2.2 后端节点管理
+
+#### 2.2.1 获取所有节点
 
 **节点**：`GET /api/nodes`
 
@@ -200,7 +244,7 @@ data: [DONE]
 }
 ```
 
-#### 2.1.2 添加节点
+#### 2.2.2 添加节点
 
 **节点**：`POST /api/nodes`
 
@@ -231,7 +275,7 @@ data: [DONE]
 - 400：URL 格式无效
 - 409：URL 已存在（可选去重）
 
-#### 2.1.3 更新节点
+#### 2.2.3 更新节点
 
 **节点**：`PUT /api/nodes/<node_id>`
 
@@ -246,7 +290,7 @@ data: [DONE]
 
 **响应**（200 OK）：返回更新后的完整对象
 
-#### 2.1.4 删除节点
+#### 2.2.4 删除节点
 
 **节点**：`DELETE /api/nodes/<node_id>`
 
@@ -254,7 +298,7 @@ data: [DONE]
 
 > 注意：由于模型映射仅涉及模型名称，不绑定具体节点，删除节点不影响已有映射。
 
-#### 2.1.5 刷新节点模型列表
+#### 2.2.5 刷新节点模型列表
 
 **节点**：`POST /api/nodes/<node_id>/refresh`
 
@@ -272,7 +316,7 @@ data: [DONE]
 - 400：无法连接节点
 - 503：Ollama 服务不可用
 
-#### 2.1.6 测试节点连通性
+#### 2.2.6 测试节点连通性
 
 **节点**：`POST /api/nodes/<node_id>/test`
 
@@ -296,11 +340,11 @@ data: [DONE]
 }
 ```
 
-### 2.2 模型映射管理
+### 2.3 模型映射管理
 
 > 模型映射仅涉及两个模型名称之间的对应关系（虚拟模型名 → 实际模型名），不绑定具体节点。转发时系统自动从所有健康节点中查找拥有该实际模型的节点。
 
-#### 2.2.1 获取所有映射
+#### 2.3.1 获取所有映射
 
 **节点**：`GET /api/mappings`
 
@@ -313,7 +357,7 @@ data: [DONE]
 }
 ```
 
-#### 2.2.2 创建/更新映射
+#### 2.3.2 创建/更新映射
 
 **节点**：`POST /api/mappings`
 
@@ -337,7 +381,7 @@ data: [DONE]
 }
 ```
 
-#### 2.2.3 删除映射
+#### 2.3.3 删除映射
 
 **节点**：`DELETE /api/mappings/<virtual_name>`
 
@@ -345,9 +389,9 @@ data: [DONE]
 
 ---
 
-### 2.3 全局配置
+### 2.4 全局配置
 
-#### 2.3.1 获取全局配置
+#### 2.4.1 获取全局配置
 
 **节点**：`GET /api/config`
 
@@ -356,14 +400,15 @@ data: [DONE]
 ```json
 {
   "api_key_enabled": false,
-  "api_key": "sk-xxxx",               // 仅当 enabled 为 true 时返回（可掩码）
+  "api_key": "sk-xxxx",               // OpenAI 兼容接口的 API Key（仅当 enabled 为 true 时返回，可掩码）
+  "admin_password": "***",            // 管理接口登录密码（始终掩码返回）
   "default_passthrough": true,        // 未映射时是否尝试同名透传
   "request_timeout": 60,              // Ollama 请求超时（秒）
   "max_retries": 2                    // 随机转发失败后的最大重试次数
 }
 ```
 
-#### 2.3.2 更新全局配置
+#### 2.4.2 更新全局配置
 
 **节点**：`POST /api/config`
 
@@ -373,6 +418,7 @@ data: [DONE]
 {
   "api_key_enabled": true,
   "api_key": "sk-new-secret",
+  "admin_password": "new-admin-password",
   "default_passthrough": false,
   "request_timeout": 30,
   "max_retries": 2
@@ -383,9 +429,9 @@ data: [DONE]
 
 ---
 
-### 2.4 日志查询
+### 2.5 日志查询
 
-#### 2.4.1 获取请求日志（分页）
+#### 2.5.1 获取请求日志（分页）
 
 **节点**：`GET /api/logs`
 
@@ -422,7 +468,7 @@ data: [DONE]
 }
 ```
 
-#### 2.4.2 获取单条日志详情
+#### 2.5.2 获取单条日志详情
 
 **节点**：`GET /api/logs/<log_id>`
 
@@ -455,7 +501,7 @@ data: [DONE]
 
 ---
 
-### 2.5 健康检查与状态
+### 2.6 健康检查与状态
 
 **节点**：`GET /api/health`
 
@@ -480,7 +526,7 @@ data: [DONE]
 
 ---
 
-### 2.6 统计摘要（仪表盘用）
+### 2.7 统计摘要（仪表盘用）
 
 **节点**：`GET /api/stats`
 
@@ -560,7 +606,7 @@ data: [DONE]
 | 201 | Created |
 | 204 | No Content |
 | 400 | 请求参数错误（如无效 JSON、缺少必填字段） |
-| 401 | 未提供 API Key 或 Key 无效 |
+| 401 | 未认证（OpenAI 接口：API Key 无效或缺失；管理接口：未登录或 Session 过期） |
 | 404 | 请求的资源不存在（如节点 ID 不存在） |
 | 409 | 资源冲突（如重复添加相同 URL 的节点） |
 | 422 | 语义错误 |
@@ -583,6 +629,24 @@ data: [DONE]
 
 ## 五、认证与安全
 
-- 管理节点和 OpenAI 代理节点**可共用同一套 API Key**。
-- 若 `api_key_enabled = true`，所有请求（除 `/api/health` 和 `/api/config` GET 外）必须携带 `Authorization: Bearer <key>`。
+本系统采用**两套独立认证机制**，分别保护 OpenAI 兼容接口和管理接口：
+
+### 5.1 OpenAI 兼容接口（`/v1/*`）
+
+- 使用 **API Key** 认证，通过 `Authorization: Bearer <api_key>` 请求头传递。
+- 若 `api_key_enabled = true`，所有 `/v1/*` 请求必须携带有效的 API Key；否则返回 401。
+- 若 `api_key_enabled = false`，则不校验，所有请求放行。
+
+### 5.2 管理接口（`/api/*`，除 `/api/health` 外）
+
+- 使用 **Cookie Session** 认证。
+- 通过 `POST /api/login` 提交 `admin_password` 登录，成功后服务端设置 Session Cookie。
+- 后续所有管理接口请求自动携带 Cookie，服务端校验 Session 有效性。
+- 未登录或 Session 过期返回 401。
+- `GET /api/health` 无需认证，供外部监控探针使用。
+
+### 5.3 安全建议
+
 - 建议在生产环境中使用 HTTPS 部署。
+- 管理接口密码和 API Key 应使用强随机字符串。
+- 日志中敏感信息（API Key、密码）应被过滤或掩码。

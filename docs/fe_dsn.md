@@ -34,6 +34,7 @@
 
 | 路径 | 页面组件 | 说明 |
 |------|---------|------|
+| `/login` | `LoginPage` | 管理员登录 |
 | `/` | `DashboardPage` | 重定向到 `/dashboard` |
 | `/dashboard` | `DashboardPage` | 展示整体统计、健康状态 |
 | `/nodes` | `NodesPage` | 管理 Ollama 后端列表 |
@@ -45,7 +46,23 @@
 
 ## 二、页面级组件划分
 
-### 2.1 DashboardPage（仪表盘）
+### 2.1 LoginPage（登录页）
+
+**功能**：管理员登录，获取 Session Cookie 后跳转到仪表盘。
+
+**子组件**：
+- `LoginForm`: 登录表单
+  - 密码输入框（密码类型）
+  - 登录按钮
+- 登录失败时显示错误提示
+
+**交互流程**：
+1. 用户输入管理密码，点击登录。
+2. 调用 `POST /api/login`，成功后浏览器自动存储 Session Cookie。
+3. 跳转到 `/dashboard`。
+4. 若未登录访问其他管理页面，自动重定向到 `/login`。
+
+### 2.2 DashboardPage（仪表盘）
 
 **功能**：展示服务概览，包括代理服务状态、后端健康摘要、请求统计。
 
@@ -58,7 +75,7 @@
 
 **数据来源**：调用 `GET /api/stats` 和 `GET /api/nodes`。
 
-### 2.2 NodesPage（节点管理）
+### 2.3 NodesPage（节点管理）
 
 **功能**：增删改查 Ollama 后端节点，查看/刷新模型列表，测试连通性。
 
@@ -81,7 +98,7 @@
 - 测试连接 → 调用 POST `/api/nodes/{id}/test` → 显示结果
 - 筛选/翻页 → 调用 `GET /api/nodes?page=x&size=y&enabled=...&healthy=...&keyword=...` → 更新表格
 
-### 2.3 MappingsPage（模型映射）
+### 2.4 MappingsPage（模型映射）
 
 **功能**：管理虚拟模型名到实际模型名的映射关系（一对一名称映射，不涉及具体节点）。
 
@@ -96,7 +113,7 @@
 **数据加载**：
 - 首次加载：获取 `GET /api/mappings`
 
-### 2.4 PlaygroundPage（测试聊天室）
+### 2.5 PlaygroundPage（测试聊天室）
 
 **功能**：选择虚拟模型，发送对话消息，流式显示回复，并展示实际使用的后端信息。
 
@@ -113,7 +130,7 @@
 3. 使用 `fetch` + `ReadableStream` 处理 SSE 流，逐块渲染到 `ChatMessageList`。
 4. 从第一个 chunk 或响应头中获取 `x-ollama-proxy` 信息（如果后端支持），或从非流式响应尾部字段获取，并在 UI 中展示。
 
-### 2.5 LogsPage（日志查看）
+### 2.6 LogsPage（日志查看）
 
 **功能**：分页展示请求日志，支持筛选和详情查看。
 
@@ -131,19 +148,20 @@
 
 **数据来源**：`GET /api/logs` 带查询参数。
 
-### 2.6 SettingsPage（全局配置）
+### 2.7 SettingsPage（全局配置）
 
-**功能**：管理 API Key、透传模式、超时重试等全局设置。
+**功能**：管理 OpenAI 接口 API Key、管理密码、透传模式、超时重试等全局设置。
 
 **子组件**：
 - `GlobalConfigForm`: 表单
-  - 开关：启用 API Key 认证
+  - 开关：启用 API Key 认证（OpenAI 兼容接口）
   - 输入框：API Key（密码类型，可显示/隐藏）
+  - 输入框：管理密码（修改管理接口登录密码）
   - 开关：未映射时同名透传 (default_passthrough)
   - 数字输入：请求超时（秒）、最大重试次数
 - `SaveButton`: 提交表单到 `POST /api/config`
 
-**安全提示**：API Key 修改后，后续请求需立即使用新 Key。
+**安全提示**：API Key 修改后，后续 OpenAI 接口请求需立即使用新 Key。管理密码修改后需重新登录。
 
 ## 三、通用/共享组件
 
@@ -151,7 +169,7 @@
 |--------|------|------|
 | `Layout` | 顶部栏 + 侧边栏 + 内容区域 | 使用 Ant Design Layout 或自定义 |
 | `Sidebar` | 菜单导航 | 高亮当前路由 |
-| `Header` | 显示服务状态、刷新按钮 | 包含健康检查小红点 |
+| `Header` | 显示服务状态、刷新按钮、登出按钮 | 包含健康检查小红点 |
 | `LoadingSpinner` | 全局加载指示器 | 用于异步请求等待 |
 | `ErrorBoundary` | 捕获组件错误，展示降级 UI | React 错误边界 |
 | `ToastNotification` | 操作成功/失败提示 | 可用 Ant Design message |
@@ -211,10 +229,13 @@ const useAppStore = create((set) => ({
 
 ```
 App
-├─ Layout
+├─ LoginPage (独立页面，不使用 Layout)
+│  └─ LoginForm
+├─ Layout (需登录后才渲染)
 │  ├─ Header
 │  │  ├─ ServiceStatusBadge
-│  │  └─ RefreshButton
+│  │  ├─ RefreshButton
+│  │  └─ LogoutButton
 │  ├─ Sidebar
 │  │  └─ MenuItems
 │  └─ Content (Outlet)
@@ -254,22 +275,31 @@ App
 创建 `api.js` 模块，基于 Axios 实例：
 
 ```js
+// 管理接口客户端（Cookie Session 认证）
 const apiClient = axios.create({
-  baseURL: '/api',  // 代理到后端
+  baseURL: '/api',
   timeout: 10000,
+  withCredentials: true,  // 自动携带 Cookie
 });
 
-// 请求拦截器添加 API Key
-apiClient.interceptors.request.use((config) => {
-  const apiKey = localStorage.getItem('api_key');
-  if (apiKey) {
-    config.headers.Authorization = `Bearer ${apiKey}`;
+// 401 时跳转登录页
+apiClient.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401 && !window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
   }
-  return config;
-});
+);
+
+export const authApi = {
+  login: (password) => apiClient.post('/login', { password }),
+  logout: () => apiClient.post('/logout'),
+};
 
 export const nodesApi = {
-  list: () => apiClient.get('/nodes'),
+  list: (params) => apiClient.get('/nodes', { params }),
   create: (data) => apiClient.post('/nodes', data),
   update: (id, data) => apiClient.put(`/nodes/${id}`, data),
   delete: (id) => apiClient.delete(`/nodes/${id}`),

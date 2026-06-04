@@ -56,12 +56,15 @@ Ollama 可在一台机器或不同服务器上运行多个实例，每个实例�
   "global": {
     "api_key_enabled": false,
     "api_key": "",
+    "admin_password": "",          // 管理接口登录密码
     "default_passthrough": true   // 未映射时是否尝试同名透传
   }
 }
 ```
 
-**运行时配置接口**：
+**运行时配置接口**（管理接口采用 Cookie Session 认证，需先通过 `/api/login` 登录）：
+- `POST /api/login` 管理员登录（提交密码，返回 Session Cookie）
+- `POST /api/logout` 管理员登出（清除 Session）
 - `GET /api/nodes` 获取节点列表（支持分页、筛选）
 - `POST /api/nodes` 添加新节点（需提供 URL，可选模型列表）
 - `PUT /api/nodes/<id>` 更新节点（如 URL、启用状态）
