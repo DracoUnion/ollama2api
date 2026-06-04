@@ -202,7 +202,7 @@ def test_node(node_id):
 
 @nodes_bp.route("/<node_id>/pull", methods=["POST"])
 @require_auth
-def pull_model(node_id):
+def pull_model(node_id): 
     """
     拉取模型
 
@@ -224,27 +224,13 @@ def pull_model(node_id):
         raise NotFoundError("节点不存在")
 
     # 调用 Ollama /api/pull
-    try:
-        ollama_response = requests.post(
-            f"{node.url}/api/pull",
-            json={"name": req.model_name, "stream": req.stream},
-            timeout=300,
-            stream=req.stream
-        )
-        ollama_response.raise_for_status()
-    except requests.exceptions.ConnectionError:
-        raise ServiceUnavailableError("无法连接节点")
-    except requests.exceptions.Timeout:
-        raise ServiceUnavailableError("节点连接超时")
-    except requests.exceptions.RequestException as e:
-        error_msg = str(e)
-        if hasattr(e, 'response') and e.response is not None:
-            try:
-                error_data = e.response.json()
-                error_msg = error_data.get("error", str(e))
-            except Exception:
-                pass
-        raise BadGatewayError(f"Ollama 错误: {error_msg}")
+    ollama_response = requests.post(
+        f"{node.url}/api/pull",
+        json={"model": req.model_name, "stream": req.stream},
+        timeout=300,
+        stream=req.stream
+    )
+    ollama_response.raise_for_status()
 
     # 流式返回
     if req.stream:
