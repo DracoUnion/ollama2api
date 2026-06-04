@@ -450,45 +450,29 @@ data: {"status":"success"}
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `file` | File | 是 | CSV 文件（UTF-8 编码，逗号分隔） |
-| `column_mapping` | String (JSON) | 是 | 列映射 JSON，描述 CSV 各列对应的节点字段 |
-| `has_header` | Boolean | 否 | CSV 是否包含表头行（默认 `true`，表头行被跳过） |
+| `column` | String | 是 | URL 列的名称 |
 | `auto_refresh` | Boolean | 否 | 导入后是否自动调用 `/api/tags` 刷新每个节点的模型列表（默认 `false`） |
-
-**`column_mapping` 格式**：
-
-JSON 对象，key 为 CSV 列索引（从 0 开始），value 为节点字段名。可映射的字段：
-
-| 字段名 | 说明 | 必须映射 |
-|--------|------|----------|
-| `url` | 节点地址（如 `http://10.0.0.1:11434`） | 是 |
-| `enabled` | 是否启用（`true`/`false`/`1`/`0`，默认 `true`） | 否 |
-| `remark` | 备注/别名 | 否 |
-
-示例：CSV 内容为 `http://10.0.0.1:11434,true,主节点`，则 `column_mapping` 为：
-```json
-{"0": "url", "1": "enabled", "2": "remark"}
-```
+| `enabled` | String | 否 | 是否启用（`true`/`false`/`1`/`0`，默认 `true`） |
 
 **请求示例**：
 
 ```bash
 curl -X POST /api/nodes/import \
   -F "file=@nodes.csv" \
-  -F 'column_mapping={"0":"url","1":"enabled","2":"remark"}' \
-  -F "has_header=true" \
+  -F 'column=link' \
   -F "auto_refresh=false"
 ```
 
 **CSV 文件示例**：
 
 ```csv
-地址,启用状态,备注
-http://10.0.0.1:11434,true,主节点-机房A
-http://10.0.0.2:11434,true,备用节点-机房B
-http://10.0.0.3:11434,false,待上线节点
+host,link,domain,title,ip,port,country
+47.104.5.184:11434,http://47.104.5.184:11434,,,47.104.5.184,11434,CN
+95.40.76.239:5938,http://95.40.76.239:5938,,,95.40.76.239,5938,CN
+223.167.85.129:8003,http://223.167.85.129:8003,,,223.167.85.129,8003,CN
+
 ```
 
-对应 `column_mapping`：`{"0": "url", "1": "enabled", "2": "remark"}`，`has_header` = `true`。
 
 **响应**（200 OK）：
 
