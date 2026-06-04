@@ -2,7 +2,7 @@
 
 > 技术栈：React 18 + React Router v6 + Axios + Ant Design (或 Tailwind + shadcn/ui) + Zustand/Context 状态管理。  
 > 构建工具：Vite。  
-> 目标：提供友好的多后端 Ollama 代理管理界面，支持端点配置、模型映射、实时聊天测试和日志监控。
+> 目标：提供友好的多后端 Ollama 代理管理界面，支持节点配置、模型映射、实时聊天测试和日志监控。
 
 ## 一、整体布局与路由
 
@@ -24,7 +24,7 @@
 
 - **侧边栏菜单项**：
   - 仪表盘 (Dashboard)
-  - 端点管理 (Endpoints)
+  - 节点管理 (Nodes)
   - 模型映射 (Mappings)
   - 测试聊天室 (Playground)
   - 日志查看 (Logs)
@@ -36,7 +36,7 @@
 |------|---------|------|
 | `/` | `DashboardPage` | 重定向到 `/dashboard` |
 | `/dashboard` | `DashboardPage` | 展示整体统计、健康状态 |
-| `/endpoints` | `EndpointsPage` | 管理 Ollama 后端列表 |
+| `/nodes` | `NodesPage` | 管理 Ollama 后端列表 |
 | `/mappings` | `MappingsPage` | 管理虚拟模型 ↔ 实际后端映射 |
 | `/playground` | `PlaygroundPage` | 聊天测试界面 |
 | `/logs` | `LogsPage` | 日志列表及详情 |
@@ -51,29 +51,29 @@
 
 **子组件**：
 - `HealthStatusCard`: 显示代理服务健康状态、版本、运行时长
-- `BackendSummaryCard`: 显示后端总数/健康数/不健康数，列出不健康端点（警告）
+- `BackendSummaryCard`: 显示后端总数/健康数/不健康数，列出不健康节点（警告）
 - `StatsChart`: 使用 ECharts 或 Recharts 展示最近请求趋势（按小时/天）
 - `ModelUsageTable`: 按虚拟模型名的请求量/平均耗时表格
 - `TopBackendTable`: 按后端 URL 的请求分布
 
-**数据来源**：调用 `GET /api/stats` 和 `GET /api/endpoints`。
+**数据来源**：调用 `GET /api/stats` 和 `GET /api/nodes`。
 
-### 2.2 EndpointsPage（端点管理）
+### 2.2 NodesPage（节点管理）
 
-**功能**：增删改查 Ollama 后端端点，查看/刷新模型列表，测试连通性。
+**功能**：增删改查 Ollama 后端节点，查看/刷新模型列表，测试连通性。
 
 **子组件**：
-- `EndpointList`: 表格展示所有端点
+- `NodeList`: 表格展示所有节点
   - 每行包含：URL、启用开关、健康状态（图标）、模型数量、操作按钮
   - 操作：编辑、删除、刷新模型、测试连接
-- `EndpointFormModal`: 添加/编辑端点的弹窗表单（URL、备注、启用状态）
-- `RefreshModelsButton`: 针对单个端点的刷新按钮，触发刷新并更新模型列表
+- `NodeFormModal`: 添加/编辑节点的弹窗表单（URL、备注、启用状态）
+- `RefreshModelsButton`: 针对单个节点的刷新按钮，触发刷新并更新模型列表
 - `TestConnectionButton`: 测试连接，显示成功/失败 Toast
 
 **交互流程**：
-- 点击添加 → 弹出 `EndpointFormModal` → 提交 → 刷新列表
-- 点击刷新模型 → 调用 POST `/api/endpoints/{id}/refresh` → 更新表格中的“模型列表”列
-- 测试连接 → 调用 POST `/api/endpoints/{id}/test` → 显示结果
+- 点击添加 → 弹出 `NodeFormModal` → 提交 → 刷新列表
+- 点击刷新模型 → 调用 POST `/api/nodes/{id}/refresh` → 更新表格中的“模型列表”列
+- 测试连接 → 调用 POST `/api/nodes/{id}/test` → 显示结果
 
 ### 2.3 MappingsPage（模型映射）
 
@@ -84,13 +84,13 @@
   - 列：虚拟模型名、实际目标列表（显示为多个标签）、操作（编辑、删除）
 - `MappingFormModal`: 添加/编辑映射的复杂表单
   - 虚拟模型名输入（文本框）
-  - 实际目标列表：支持动态添加多行，每行选择 `endpoint` + 该端点的 `model_name`
-  - 可用端点及模型数据从 `GET /api/endpoints` 获取（展开每个端点的 models 列表）
+  - 实际目标列表：支持动态添加多行，每行选择 `node` + 该节点的 `model_name`
+  - 可用节点及模型数据从 `GET /api/nodes` 获取（展开每个节点的 models 列表）
 - `DeleteMappingConfirm`: 删除前的确认弹窗
 
 **数据加载**：
-- 首次加载：并行获取 `GET /api/mappings` 和 `GET /api/endpoints`
-- 构建选择器：将端点按 `endpoint_id` 分组，展示每个端点下已刷新的模型列表。
+- 首次加载：并行获取 `GET /api/mappings` 和 `GET /api/nodes`
+- 构建选择器：将节点按 `node_id` 分组，展示每个节点下已刷新的模型列表。
 
 ### 2.4 PlaygroundPage（测试聊天室）
 
@@ -105,7 +105,7 @@
 
 **交互流程**：
 1. 用户选择虚拟模型。
-2. 发送消息时，前端直接调用 OpenAI 兼容端点 `POST /v1/chat/completions`（stream=true）。
+2. 发送消息时，前端直接调用 OpenAI 兼容节点 `POST /v1/chat/completions`（stream=true）。
 3. 使用 `fetch` + `ReadableStream` 处理 SSE 流，逐块渲染到 `ChatMessageList`。
 4. 从第一个 chunk 或响应头中获取 `x-ollama-proxy` 信息（如果后端支持），或从非流式响应尾部字段获取，并在 UI 中展示。
 
@@ -167,12 +167,12 @@ const useAppStore = create((set) => ({
   globalConfig: { apiKeyEnabled: false, defaultPassthrough: true, ... },
   setGlobalConfig: (config) => set({ globalConfig: config }),
 
-  // 端点列表
-  endpoints: [],
-  setEndpoints: (eps) => set({ endpoints: eps }),
-  addEndpoint: (ep) => set((state) => ({ endpoints: [...state.endpoints, ep] })),
-  updateEndpoint: (id, updates) => ...,
-  deleteEndpoint: (id) => ...,
+  // 节点列表
+  nodes: [],
+  setNodes: (eps) => set({ nodes: eps }),
+  addNode: (ep) => set((state) => ({ nodes: [...state.nodes, ep] })),
+  updateNode: (id, updates) => ...,
+  deleteNode: (id) => ...,
 
   // 模型映射表
   mappings: {},
@@ -187,7 +187,7 @@ const useAppStore = create((set) => ({
 ### 4.2 数据获取与缓存
 
 - 使用 React Query (TanStack Query) 管理服务端状态，自动处理缓存、重新验证。
-- 对于端点列表和映射表，在组件挂载时获取，并设置定期刷新（例如每 30 秒轮询健康状态）。
+- 对于节点列表和映射表，在组件挂载时获取，并设置定期刷新（例如每 30 秒轮询健康状态）。
 
 ## 五、样式与 UI 库
 
@@ -216,10 +216,10 @@ App
 │     │  ├─ BackendSummaryCard
 │     │  ├─ StatsChart (Recharts)
 │     │  └─ ModelUsageTable
-│     ├─ EndpointsPage
-│     │  ├─ EndpointList (Table)
-│     │  │  └─ EndpointActions (Buttons)
-│     │  └─ EndpointFormModal
+│     ├─ NodesPage
+│     │  ├─ NodeList (Table)
+│     │  │  └─ NodeActions (Buttons)
+│     │  └─ NodeFormModal
 │     ├─ MappingsPage
 │     │  ├─ MappingTable
 │     │  │  └─ MappingActions
@@ -260,13 +260,13 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-export const endpointsApi = {
-  list: () => apiClient.get('/endpoints'),
-  create: (data) => apiClient.post('/endpoints', data),
-  update: (id, data) => apiClient.put(`/endpoints/${id}`, data),
-  delete: (id) => apiClient.delete(`/endpoints/${id}`),
-  refreshModels: (id) => apiClient.post(`/endpoints/${id}/refresh`),
-  test: (id) => apiClient.post(`/endpoints/${id}/test`),
+export const nodesApi = {
+  list: () => apiClient.get('/nodes'),
+  create: (data) => apiClient.post('/nodes', data),
+  update: (id, data) => apiClient.put(`/nodes/${id}`, data),
+  delete: (id) => apiClient.delete(`/nodes/${id}`),
+  refreshModels: (id) => apiClient.post(`/nodes/${id}/refresh`),
+  test: (id) => apiClient.post(`/nodes/${id}/test`),
 };
 // ... 其他 API 模块
 ```
@@ -275,7 +275,7 @@ export const endpointsApi = {
 
 1. 搭建项目框架：Vite + React + Ant Design + Router
 2. 实现 Layout 和路由基础结构
-3. 实现 EndpointsPage（增删改查 + 刷新模型）→ 确保后端管理基本可用
+3. 实现 NodesPage（增删改查 + 刷新模型）→ 确保后端管理基本可用
 4. 实现 MappingsPage（模型映射配置）→ 用于后续测试
 5. 实现 PlaygroundPage（聊天测试）→ 验证整体转发功能
 6. 实现 LogsPage 和 DashboardPage（统计图表）

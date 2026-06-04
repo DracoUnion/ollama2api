@@ -1,14 +1,14 @@
 # 后端 API 设计文档
 
 > 本设计基于 Flask，提供两类 API：
-> 1. **OpenAI 兼容端点**（供客户端使用，模拟 OpenAI API 格式）
-> 2. **管理端点**（供前端 React 应用调用，管理多后端、模型映射、查看日志）
+> 1. **OpenAI 兼容节点**（供客户端使用，模拟 OpenAI API 格式）
+> 2. **管理节点**（供前端 React 应用调用，管理多后端、模型映射、查看日志）
 
-## 一、OpenAI 兼容端点（代理转发）
+## 一、OpenAI 兼容节点（代理转发）
 
 ### 1.1 聊天补全
 
-**端点**：`POST /v1/chat/completions`
+**节点**：`POST /v1/chat/completions`
 
 **功能**：接收 OpenAI 格式的聊天请求，根据模型映射随机选择一个 Ollama 后端，转换后调用 Ollama `/api/chat`，并返回 OpenAI 格式响应（支持流式/非流式）。
 
@@ -111,7 +111,7 @@ data: [DONE]
 
 ### 1.2 查询可用模型（虚拟模型）
 
-**端点**：`GET /v1/models`
+**节点**：`GET /v1/models`
 
 **功能**：返回当前配置中所有**虚拟模型名**（从模型映射表的 key 中提取），同时可选返回每个虚拟模型对应的实际后端信息（非标准字段）。主要供 OpenAI SDK 的 `client.models.list()` 使用。
 
@@ -149,14 +149,14 @@ data: [DONE]
 
 ## 二、管理 API
 
-> **前缀**：`/api`（与代理端点区分）
-> **认证**：可选，建议在管理接口也支持 API Key（与 OpenAI 端点使用相同 key），或独立配置管理密码。
+> **前缀**：`/api`（与代理节点区分）
+> **认证**：可选，建议在管理接口也支持 API Key（与 OpenAI 节点使用相同 key），或独立配置管理密码。
 
-### 2.1 后端端点管理
+### 2.1 后端节点管理
 
-#### 2.1.1 获取所有端点
+#### 2.1.1 获取所有节点
 
-**端点**：`GET /api/endpoints`
+**节点**：`GET /api/nodes`
 
 **响应**（200 OK）：
 
@@ -183,9 +183,9 @@ data: [DONE]
 ]
 ```
 
-#### 2.1.2 添加端点
+#### 2.1.2 添加节点
 
-**端点**：`POST /api/endpoints`
+**节点**：`POST /api/nodes`
 
 **请求体**：
 
@@ -214,9 +214,9 @@ data: [DONE]
 - 400：URL 格式无效
 - 409：URL 已存在（可选去重）
 
-#### 2.1.3 更新端点
+#### 2.1.3 更新节点
 
-**端点**：`PUT /api/endpoints/<endpoint_id>`
+**节点**：`PUT /api/nodes/<node_id>`
 
 **请求体**（所有字段可选）：
 
@@ -229,19 +229,19 @@ data: [DONE]
 
 **响应**（200 OK）：返回更新后的完整对象
 
-#### 2.1.4 删除端点
+#### 2.1.4 删除节点
 
-**端点**：`DELETE /api/endpoints/<endpoint_id>`
+**节点**：`DELETE /api/nodes/<node_id>`
 
 **响应**（204 No Content）
 
-> 注意：删除端点时，相关的模型映射中的条目应自动移除（或保留但标记为无效，由前端/后端逻辑处理）。
+> 注意：删除节点时，相关的模型映射中的条目应自动移除（或保留但标记为无效，由前端/后端逻辑处理）。
 
-#### 2.1.5 刷新端点模型列表
+#### 2.1.5 刷新节点模型列表
 
-**端点**：`POST /api/endpoints/<endpoint_id>/refresh`
+**节点**：`POST /api/nodes/<node_id>/refresh`
 
-**功能**：调用 Ollama 的 `/api/tags` 获取该端点当前可用模型，更新到 `models` 字段。
+**功能**：调用 Ollama 的 `/api/tags` 获取该节点当前可用模型，更新到 `models` 字段。
 
 **响应**（200 OK）：
 
@@ -252,14 +252,14 @@ data: [DONE]
 ```
 
 **错误**：
-- 400：无法连接端点
+- 400：无法连接节点
 - 503：Ollama 服务不可用
 
-#### 2.1.6 测试端点连通性
+#### 2.1.6 测试节点连通性
 
-**端点**：`POST /api/endpoints/<endpoint_id>/test`
+**节点**：`POST /api/nodes/<node_id>/test`
 
-**功能**：测试 Ollama 端点是否可达（调用 `/api/tags` 并等待响应）。
+**功能**：测试 Ollama 节点是否可达（调用 `/api/tags` 并等待响应）。
 
 **响应**（200 OK）：
 
@@ -283,25 +283,25 @@ data: [DONE]
 
 #### 2.2.1 获取所有映射
 
-**端点**：`GET /api/mappings`
+**节点**：`GET /api/mappings`
 
 **响应**（200 OK）：
 
 ```json
 {
   "gpt-3.5-turbo": [
-    { "endpoint_id": "ep_1", "model_name": "llama3:7b" },
-    { "endpoint_id": "ep_2", "model_name": "qwen2:7b" }
+    { "node_id": "ep_1", "model_name": "llama3:7b" },
+    { "node_id": "ep_2", "model_name": "qwen2:7b" }
   ],
   "claude-instant": [
-    { "endpoint_id": "ep_1", "model_name": "mistral:7b" }
+    { "node_id": "ep_1", "model_name": "mistral:7b" }
   ]
 }
 ```
 
 #### 2.2.2 创建/更新映射
 
-**端点**：`POST /api/mappings`
+**节点**：`POST /api/mappings`
 
 **请求体**：
 
@@ -309,8 +309,8 @@ data: [DONE]
 {
   "virtual_name": "gpt-3.5-turbo",
   "targets": [
-    { "endpoint_id": "ep_1", "model_name": "llama3:7b" },
-    { "endpoint_id": "ep_2", "model_name": "llama3:7b" }   // 相同模型名不同后端
+    { "node_id": "ep_1", "model_name": "llama3:7b" },
+    { "node_id": "ep_2", "model_name": "llama3:7b" }   // 相同模型名不同后端
   ]
 }
 ```
@@ -328,11 +328,11 @@ data: [DONE]
 ```
 
 **错误**：
-- 400：`targets` 中引用的 `endpoint_id` 不存在，或 `model_name` 不在该端点的 `models` 列表中（警告但不强制拒绝，可由系统自动修复）
+- 400：`targets` 中引用的 `node_id` 不存在，或 `model_name` 不在该节点的 `models` 列表中（警告但不强制拒绝，可由系统自动修复）
 
 #### 2.2.3 删除映射
 
-**端点**：`DELETE /api/mappings/<virtual_name>`
+**节点**：`DELETE /api/mappings/<virtual_name>`
 
 **响应**：204 No Content
 
@@ -342,7 +342,7 @@ data: [DONE]
 
 #### 2.3.1 获取全局配置
 
-**端点**：`GET /api/config`
+**节点**：`GET /api/config`
 
 **响应**（200 OK）：
 
@@ -358,7 +358,7 @@ data: [DONE]
 
 #### 2.3.2 更新全局配置
 
-**端点**：`POST /api/config`
+**节点**：`POST /api/config`
 
 **请求体**：
 
@@ -380,7 +380,7 @@ data: [DONE]
 
 #### 2.4.1 获取请求日志（分页）
 
-**端点**：`GET /api/logs`
+**节点**：`GET /api/logs`
 
 **查询参数**：
 - `page`：页码（默认 1）
@@ -417,7 +417,7 @@ data: [DONE]
 
 #### 2.4.2 获取单条日志详情
 
-**端点**：`GET /api/logs/<log_id>`
+**节点**：`GET /api/logs/<log_id>`
 
 **响应**（200 OK）：
 
@@ -450,9 +450,9 @@ data: [DONE]
 
 ### 2.5 健康检查与状态
 
-**端点**：`GET /api/health`
+**节点**：`GET /api/health`
 
-**功能**：检查本服务（代理）是否运行正常，以及任意 Ollama 端点是否可达（可选）。
+**功能**：检查本服务（代理）是否运行正常，以及任意 Ollama 节点是否可达（可选）。
 
 **响应**（200 OK）：
 
@@ -461,7 +461,7 @@ data: [DONE]
   "status": "ok",
   "version": "1.0.0",
   "uptime_seconds": 3600,
-  "ollama_endpoints": {
+  "ollama_nodes": {
     "total": 2,
     "healthy": 1,
     "unhealthy": 1
@@ -475,7 +475,7 @@ data: [DONE]
 
 ### 2.6 统计摘要（仪表盘用）
 
-**端点**：`GET /api/stats`
+**节点**：`GET /api/stats`
 
 **功能**：提供仪表盘所需概览数据。
 
@@ -506,7 +506,7 @@ data: [DONE]
 
 ### 3.1 表结构
 
-**endpoints**
+**nodes**
 - `id` TEXT PRIMARY KEY (如 "ep_xxx")
 - `url` TEXT UNIQUE NOT NULL
 - `enabled` INTEGER (0/1)
@@ -514,17 +514,17 @@ data: [DONE]
 - `last_health_check` TIMESTAMP
 - `created_at` TIMESTAMP
 
-**endpoint_models**（一对多）
-- `endpoint_id` TEXT FOREIGN KEY
+**node_models**（一对多）
+- `node_id` TEXT FOREIGN KEY
 - `model_name` TEXT
-- PRIMARY KEY (`endpoint_id`, `model_name`)
+- PRIMARY KEY (`node_id`, `model_name`)
 
 **model_mappings**
 - `virtual_name` TEXT
-- `endpoint_id` TEXT
+- `node_id` TEXT
 - `actual_model_name` TEXT
-- PRIMARY KEY (`virtual_name`, `endpoint_id`, `actual_model_name`)
-- FOREIGN KEY (`endpoint_id`) REFERENCES `endpoints`(`id`)
+- PRIMARY KEY (`virtual_name`, `node_id`, `actual_model_name`)
+- FOREIGN KEY (`node_id`) REFERENCES `nodes`(`id`)
 
 **request_logs**
 - `id` TEXT PRIMARY KEY
@@ -557,15 +557,15 @@ data: [DONE]
 | 204 | No Content |
 | 400 | 请求参数错误（如无效 JSON、缺少必填字段） |
 | 401 | 未提供 API Key 或 Key 无效 |
-| 404 | 请求的资源不存在（如端点 ID 不存在） |
-| 409 | 资源冲突（如重复添加相同 URL 的端点） |
-| 422 | 语义错误（如映射引用了不存在的端点 ID） |
+| 404 | 请求的资源不存在（如节点 ID 不存在） |
+| 409 | 资源冲突（如重复添加相同 URL 的节点） |
+| 422 | 语义错误（如映射引用了不存在的节点 ID） |
 | 500 | 代理服务内部错误 |
 | 502 | 选中的 Ollama 后端返回无效响应 |
 | 503 | 所有可用后端均不可达，或模型映射为空 |
 | 504 | 后端超时 |
 
-对于 OpenAI 兼容端点，错误响应格式遵循 OpenAI 的 `error` 对象结构。对于管理端点，可简化：
+对于 OpenAI 兼容节点，错误响应格式遵循 OpenAI 的 `error` 对象结构。对于管理节点，可简化：
 
 ```json
 {
@@ -579,6 +579,6 @@ data: [DONE]
 
 ## 五、认证与安全
 
-- 管理端点和 OpenAI 代理端点**可共用同一套 API Key**。
+- 管理节点和 OpenAI 代理节点**可共用同一套 API Key**。
 - 若 `api_key_enabled = true`，所有请求（除 `/api/health` 和 `/api/config` GET 外）必须携带 `Authorization: Bearer <key>`。
 - 建议在生产环境中使用 HTTPS 部署。
