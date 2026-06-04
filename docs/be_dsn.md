@@ -437,6 +437,88 @@ data: {"status":"success"}
 - 无法连接节点：`{"code": 400, "data": null, "msg": "Cannot connect to node"}`
 - Ollama 返回错误（如模型不存在）：`{"code": 502, "data": null, "msg": "Ollama error: model not found"}`
 
+#### 2.2.8 CSV 批量导入节点
+
+**节点**：`POST /api/nodes/import`
+
+**Content-Type**：`multipart/form-data`
+
+**功能**：上传 CSV 文件，按用户指定的列映射关系批量导入 Ollama 节点。支持跳过表头行、自动去重（按 URL）、可选自动刷新模型列表。
+
+**表单字段**：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `file` | File | 是 | CSV 文件（UTF-8 编码，逗号分隔） |
+| `column_mapping` | String (JSON) | 是 | 列映射 JSON，描述 CSV 各列对应的节点字段 |
+| `has_header` | Boolean | 否 | CSV 是否包含表头行（默认 `true`，表头行被跳过） |
+| `auto_refresh` | Boolean | 否 | 导入后是否自动调用 `/api/tags` 刷新每个节点的模型列表（默认 `false`） |
+
+**`column_mapping` 格式**：
+
+JSON 对象，key 为 CSV 列索引（从 0 开始），value 为节点字段名。可映射的字段：
+
+| 字段名 | 说明 | 必须映射 |
+|--------|------|----------|
+| `url` | 节点地址（如 `http://10.0.0.1:11434`） | 是 |
+| `enabled` | 是否启用（`true`/`false`/`1`/`0`，默认 `true`） | 否 |
+| `remark` | 备注/别名 | 否 |
+
+示例：CSV 内容为 `http://10.0.0.1:11434,true,主节点`，则 `column_mapping` 为：
+```json
+{"0": "url", "1": "enabled", "2": "remark"}
+```
+
+**请求示例**：
+
+```bash
+curl -X POST /api/nodes/import \
+  -F "file=@nodes.csv" \
+  -F 'column_mapping={"0":"url","1":"enabled","2":"remark"}' \
+  -F "has_header=true" \
+  -F "auto_refresh=false"
+```
+
+**CSV 文件示例**：
+
+```csv
+地址,启用状态,备注
+http://10.0.0.1:11434,true,主节点-机房A
+http://10.0.0.2:11434,true,备用节点-机房B
+http://10.0.0.3:11434,false,待上线节点
+```
+
+对应 `column_mapping`：`{"0": "url", "1": "enabled", "2": "remark"}`，`has_header` = `true`。
+
+**响应**（200 OK）：
+
+```json
+{
+  "code": 0,
+  "data": {
+    "total": 3,
+    "created": 2,
+    "skipped": 1,
+    "errors": [
+      { "row": 5, "reason": "URL already exists" }
+    ]
+  },
+  "msg": ""
+}
+```
+
+- `total`：CSV 中的有效数据行数（不含表头）。
+- `created`：成功创建的节点数。
+- `skipped`：跳过的行数（URL 已存在或数据无效）。
+- `errors`：逐行错误详情（行号 + 原因），便于用户修正后重新导入。
+
+**错误**：
+- 缺少 `file`：`{"code": 400, "data": null, "msg": "Missing file"}`
+- 缺少 `column_mapping`：`{"code": 400, "data": null, "msg": "Missing column_mapping"}`
+- `column_mapping` 不含 `url` 字段：`{"code": 400, "data": null, "msg": "column_mapping must include 'url' field"}`
+- `column_mapping` JSON 解析失败：`{"code": 400, "data": null, "msg": "Invalid column_mapping JSON"}`
+- CSV 文件为空或格式错误：`{"code": 400, "data": null, "msg": "Invalid CSV format"}`
+
 ### 2.3 模型映射管理
 
 > 模型映射仅涉及两个模型名称之间的对应关系（虚拟模型名 → 实际模型名），不绑定具体节点。转发时系统自动从所有健康节点中查找拥有该实际模型的节点。

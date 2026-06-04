@@ -94,9 +94,17 @@
 - `PullModelModal`: 拉取模型弹窗
   - 模型名称输入框（如 `llama3:7b`、`qwen2:latest`）
   - 拉取按钮、进度条（流式模式下实时展示 Ollama 返回的拉取进度）
+- `NodeImportModal`: CSV 批量导入弹窗
+  - 文件上传区域（拖拽或点击选择 `.csv` 文件）
+  - CSV 预览表格（上传后自动解析前 5 行展示，便于用户确认列对应关系）
+  - 列映射配置：为每个 CSV 列选择对应的节点字段（`url`、`enabled`、`remark`），`url` 为必选
+  - 复选框：是否包含表头行（默认勾选）
+  - 复选框：导入后自动刷新模型列表（默认不勾选）
+  - 导入按钮 → 调用 `POST /api/nodes/import` → 展示结果摘要（成功数 / 跳过数 / 逐行错误）
 
 **交互流程**：
 - 点击添加 → 弹出 `NodeFormModal` → 提交 → 刷新列表
+- 点击批量导入 → 弹出 `NodeImportModal` → 上传 CSV → 预览数据 → 配置列映射 → 点击导入 → 展示结果 → 刷新列表
 - 点击刷新模型 → 调用 POST `/api/nodes/{id}/refresh` → 更新表格中的”模型列表”列
 - 测试连接 → 调用 POST `/api/nodes/{id}/test` → 显示结果
 - 点击拉取模型 → 弹出 `PullModelModal` → 输入模型名 → 调用 POST `/api/nodes/{id}/pull`（stream=true）→ 实时展示进度 → 完成后可刷新模型列表
@@ -327,6 +335,16 @@ export const nodesApi = {
           body: JSON.stringify({ model_name: modelName, stream: true }),
         })  // 返回 ReadableStream，逐行解析 SSE
       : apiClient.post(`/nodes/${id}/pull`, { model_name: modelName, stream: false }),
+  import: (file, columnMapping, hasHeader = true, autoRefresh = false) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('column_mapping', JSON.stringify(columnMapping));
+    formData.append('has_header', hasHeader);
+    formData.append('auto_refresh', autoRefresh);
+    return apiClient.post('/nodes/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 // ... 其他 API 模块
 ```
