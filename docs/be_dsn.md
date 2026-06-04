@@ -109,11 +109,15 @@ data: [DONE]
 
 ---
 
-### 1.2 查询可用模型（虚拟模型）
+### 1.2 查询可用模型（虚拟 + 真实）
 
 **节点**：`GET /v1/models`
 
-**功能**：返回当前配置中所有**虚拟模型名**（从模型映射表的 key 中提取），同时可选返回每个虚拟模型对应的实际后端信息（非标准字段）。主要供 OpenAI SDK 的 `client.models.list()` 使用。
+**功能**：返回当前所有可用模型，包括：
+1. **虚拟模型**：来自模型映射表的 `virtual_name`（`owned_by` 为 `"ollama-proxy"`，附加 `x-actual-model` 扩展字段）。
+2. **真实模型**：来自所有健康节点的去重模型列表（`owned_by` 为 `"ollama"`）。
+
+若虚拟模型映射的实际模型名与某个真实模型同名，两者均返回（虚拟模型优先用于转发映射，真实模型可直接透传调用）。主要供 OpenAI SDK 的 `client.models.list()` 使用。
 
 **响应**（200 OK）：
 
@@ -125,22 +129,26 @@ data: [DONE]
       "id": "gpt-3.5-turbo",
       "object": "model",
       "created": 1699000000,
-      "owned_by": "ollama-proxy"
+      "owned_by": "ollama-proxy",
+      "x-actual-model": "llama3:7b"
     },
     {
-      "id": "claude-instant",
+      "id": "llama3:7b",
       "object": "model",
       "created": 1699000000,
-      "owned_by": "ollama-proxy"
+      "owned_by": "ollama"
+    },
+    {
+      "id": "mistral:7b",
+      "object": "model",
+      "created": 1699000000,
+      "owned_by": "ollama"
     }
   ]
 }
 ```
 
-> 扩展字段（可选，用于前端展示更多信息）：
-> ```json
-> "x-actual-model": "llama3:7b"
-> ```
+> `x-actual-model` 为非标准扩展字段，仅虚拟模型携带，标明映射到的真实模型名。
 
 ---
 

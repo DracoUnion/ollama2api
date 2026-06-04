@@ -101,7 +101,7 @@
 **功能**：选择虚拟模型，发送对话消息，流式显示回复，并展示实际使用的后端信息。
 
 **子组件**：
-- `ModelSelector`: 下拉框，选项从 `GET /api/mappings` 的 key 中获取（虚拟模型名）
+- `ModelSelector`: 下拉框，选项从 `GET /v1/models` 获取（包含虚拟模型和真实模型，按 `owned_by` 分组展示）
 - `ChatMessageList`: 显示历史消息（用户/助手），支持 Markdown 渲染（可选）
 - `ChatInput`: 多行文本输入框，发送按钮，支持 Enter 发送
 - `StreamingIndicator`: 流式响应时的加载/打字效果
