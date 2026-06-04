@@ -148,24 +148,40 @@ Ollama 提供 `GET /api/tags`，返回 `{"models":[{"name":"llama3:7b",...}]}`�
 
 ## 4. 接口规范补充
 
-### 4.1 后端管理接口示例
+### 4.1 管理接口统一响应格式
+
+所有管理接口（`/api/*`）的响应体统一为以下结构，HTTP 状态码始终为 200：
+
+```json
+{
+  "code": 0,       // 业务错误码，0 表示成功，非 0 表示失败
+  "data": ...,     // 实际业务数据，成功时返回，失败时为 null
+  "msg": ""        // 错误信息，成功时为空字符串
+}
+```
+
+### 4.2 后端管理接口示例
 
 **GET /api/nodes** 响应（支持查询参数 `page`、`size`、`enabled`、`healthy`、`keyword`）：
 ```json
 {
-  "total": 5,
-  "page": 1,
-  "size": 20,
-  "data": [
-    {
-      "id": "ep_1",
-      "url": "http://10.0.0.1:11434",
-      "enabled": true,
-      "healthy": true,
-      "models": ["llama3:7b", "mistral:7b"],
-      "last_health_check": "2025-..."
-    }
-  ]
+  "code": 0,
+  "data": {
+    "total": 5,
+    "page": 1,
+    "size": 20,
+    "items": [
+      {
+        "id": "ep_1",
+        "url": "http://10.0.0.1:11434",
+        "enabled": true,
+        "healthy": true,
+        "models": ["llama3:7b", "mistral:7b"],
+        "last_health_check": "2025-..."
+      }
+    ]
+  },
+  "msg": ""
 }
 ```
 
@@ -176,15 +192,19 @@ Ollama 提供 `GET /api/tags`，返回 `{"models":[{"name":"llama3:7b",...}]}`�
   "enabled": true
 }
 ```
-响应：创建后的完整对象。
+响应：`{"code": 0, "data": {创建后的完整对象}, "msg": ""}`
 
-**POST /api/nodes/<id>/refresh** 触发模型列表刷新，返回新的 models 列表。
+**POST /api/nodes/<id>/refresh** 触发模型列表刷新，返回：`{"code": 0, "data": {"models": [...]}, "msg": ""}`
 
 **GET /api/mappings** 响应：
 ```json
 {
-  "gpt-3.5-turbo": "llama3:7b",
-  "claude-instant": "mistral:7b"
+  "code": 0,
+  "data": {
+    "gpt-3.5-turbo": "llama3:7b",
+    "claude-instant": "mistral:7b"
+  },
+  "msg": ""
 }
 ```
 

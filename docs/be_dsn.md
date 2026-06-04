@@ -156,6 +156,16 @@ data: [DONE]
 
 > **前缀**：`/api`（与代理节点区分）
 > **认证**：Cookie 校验。通过 `/api/login` 登录后获得 Session Cookie，后续所有管理接口请求需携带该 Cookie。未登录返回 401。
+>
+> **统一响应格式**：所有管理接口的响应体均使用以下统一结构，HTTP 状态码始终为 200：
+>
+> ```json
+> {
+>   "code": 0,       // 业务错误码，0 表示成功，非 0 表示失败（见下方错误码表）
+>   "data": ...,     // 实际业务数据，成功时返回，失败时为 null
+>   "msg": ""        // 错误信息，成功时为空字符串，失败时返回描述
+> }
+> ```
 
 ### 2.1 登录与登出
 
@@ -175,16 +185,17 @@ data: [DONE]
 
 ```json
 {
-  "success": true,
-  "message": "Login successful"
+  "code": 0,
+  "data": null,
+  "msg": ""
 }
 ```
 
 服务端验证密码成功后，设置 Session Cookie（如 `session_id`），后续管理接口请求自动携带该 Cookie 进行身份校验。
 
 **错误**：
-- 400：缺少 `password` 字段
-- 401：密码错误
+- 缺少 `password` 字段：`{"code": 400, "data": null, "msg": "Missing password field"}`
+- 密码错误：`{"code": 401, "data": null, "msg": "Invalid password"}`
 
 #### 2.1.2 登出
 
@@ -194,8 +205,9 @@ data: [DONE]
 
 ```json
 {
-  "success": true,
-  "message": "Logout successful"
+  "code": 0,
+  "data": null,
+  "msg": ""
 }
 ```
 
@@ -218,29 +230,33 @@ data: [DONE]
 
 ```json
 {
-  "total": 5,
-  "page": 1,
-  "size": 20,
-  "data": [
-    {
-      "id": "ep_1",
-      "url": "http://192.168.1.10:11434",
-      "enabled": true,
-      "healthy": true,
-      "models": ["llama3:7b", "mistral:7b"],
-      "last_health_check": "2025-06-03T10:30:00Z",
-      "created_at": "2025-06-01T00:00:00Z"
-    },
-    {
-      "id": "ep_2",
-      "url": "http://localhost:11434",
-      "enabled": true,
-      "healthy": false,
-      "models": [],
-      "last_health_check": "2025-06-03T10:29:55Z",
-      "created_at": "2025-06-02T00:00:00Z"
-    }
-  ]
+  "code": 0,
+  "data": {
+    "total": 5,
+    "page": 1,
+    "size": 20,
+    "items": [
+      {
+        "id": "ep_1",
+        "url": "http://192.168.1.10:11434",
+        "enabled": true,
+        "healthy": true,
+        "models": ["llama3:7b", "mistral:7b"],
+        "last_health_check": "2025-06-03T10:30:00Z",
+        "created_at": "2025-06-01T00:00:00Z"
+      },
+      {
+        "id": "ep_2",
+        "url": "http://localhost:11434",
+        "enabled": true,
+        "healthy": false,
+        "models": [],
+        "last_health_check": "2025-06-03T10:29:55Z",
+        "created_at": "2025-06-02T00:00:00Z"
+      }
+    ]
+  },
+  "msg": ""
 }
 ```
 
@@ -257,23 +273,27 @@ data: [DONE]
 }
 ```
 
-**响应**（201 Created）：
+**响应**（200 OK）：
 
 ```json
 {
-  "id": "ep_3",
-  "url": "http://10.0.0.3:11434",
-  "enabled": true,
-  "healthy": false,
-  "models": [],
-  "last_health_check": null,
-  "created_at": "2025-06-03T10:35:00Z"
+  "code": 0,
+  "data": {
+    "id": "ep_3",
+    "url": "http://10.0.0.3:11434",
+    "enabled": true,
+    "healthy": false,
+    "models": [],
+    "last_health_check": null,
+    "created_at": "2025-06-03T10:35:00Z"
+  },
+  "msg": ""
 }
 ```
 
 **错误**：
-- 400：URL 格式无效
-- 409：URL 已存在（可选去重）
+- URL 格式无效：`{"code": 400, "data": null, "msg": "Invalid URL format"}`
+- URL 已存在：`{"code": 409, "data": null, "msg": "URL already exists"}`
 
 #### 2.2.3 更新节点
 
@@ -288,13 +308,29 @@ data: [DONE]
 }
 ```
 
-**响应**（200 OK）：返回更新后的完整对象
+**响应**（200 OK）：
+
+```json
+{
+  "code": 0,
+  "data": { "id": "ep_1", "url": "...", "enabled": false, "healthy": true, "models": [...], ... },
+  "msg": ""
+}
+```
 
 #### 2.2.4 删除节点
 
 **节点**：`DELETE /api/nodes/<node_id>`
 
-**响应**（204 No Content）
+**响应**（200 OK）：
+
+```json
+{
+  "code": 0,
+  "data": null,
+  "msg": ""
+}
+```
 
 > 注意：由于模型映射仅涉及模型名称，不绑定具体节点，删除节点不影响已有映射。
 
@@ -308,13 +344,17 @@ data: [DONE]
 
 ```json
 {
-  "models": ["llama3:7b", "mistral:7b", "codellama:7b"]
+  "code": 0,
+  "data": {
+    "models": ["llama3:7b", "mistral:7b", "codellama:7b"]
+  },
+  "msg": ""
 }
 ```
 
 **错误**：
-- 400：无法连接节点
-- 503：Ollama 服务不可用
+- 无法连接节点：`{"code": 400, "data": null, "msg": "Cannot connect to node"}`
+- Ollama 服务不可用：`{"code": 503, "data": null, "msg": "Ollama service unavailable"}`
 
 #### 2.2.6 测试节点连通性
 
@@ -326,17 +366,20 @@ data: [DONE]
 
 ```json
 {
-  "success": true,
-  "models": ["llama3:7b", "mistral:7b"],
-  "message": "OK"
+  "code": 0,
+  "data": {
+    "models": ["llama3:7b", "mistral:7b"]
+  },
+  "msg": ""
 }
 ```
 
 若失败：
 ```json
 {
-  "success": false,
-  "message": "Connection refused"
+  "code": 500,
+  "data": null,
+  "msg": "Connection refused"
 }
 ```
 
@@ -352,8 +395,12 @@ data: [DONE]
 
 ```json
 {
-  "gpt-3.5-turbo": "llama3:7b",
-  "claude-instant": "mistral:7b"
+  "code": 0,
+  "data": {
+    "gpt-3.5-turbo": "llama3:7b",
+    "claude-instant": "mistral:7b"
+  },
+  "msg": ""
 }
 ```
 
@@ -376,8 +423,12 @@ data: [DONE]
 
 ```json
 {
-  "virtual_name": "gpt-3.5-turbo",
-  "actual_model_name": "llama3:7b"
+  "code": 0,
+  "data": {
+    "virtual_name": "gpt-3.5-turbo",
+    "actual_model_name": "llama3:7b"
+  },
+  "msg": ""
 }
 ```
 
@@ -385,7 +436,15 @@ data: [DONE]
 
 **节点**：`DELETE /api/mappings/<virtual_name>`
 
-**响应**：204 No Content
+**响应**（200 OK）：
+
+```json
+{
+  "code": 0,
+  "data": null,
+  "msg": ""
+}
+```
 
 ---
 
@@ -399,12 +458,16 @@ data: [DONE]
 
 ```json
 {
-  "api_key_enabled": false,
-  "api_key": "sk-xxxx",               // OpenAI 兼容接口的 API Key（仅当 enabled 为 true 时返回，可掩码）
-  "admin_password": "***",            // 管理接口登录密码（始终掩码返回）
-  "default_passthrough": true,        // 未映射时是否尝试同名透传
-  "request_timeout": 60,              // Ollama 请求超时（秒）
-  "max_retries": 2                    // 随机转发失败后的最大重试次数
+  "code": 0,
+  "data": {
+    "api_key_enabled": false,
+    "api_key": "sk-xxxx",               // OpenAI 兼容接口的 API Key（仅当 enabled 为 true 时返回，可掩码）
+    "admin_password": "***",            // 管理接口登录密码（始终掩码返回）
+    "default_passthrough": true,        // 未映射时是否尝试同名透传
+    "request_timeout": 60,              // Ollama 请求超时（秒）
+    "max_retries": 2                    // 随机转发失败后的最大重试次数
+  },
+  "msg": ""
 }
 ```
 
@@ -425,7 +488,17 @@ data: [DONE]
 }
 ```
 
-**响应**（200 OK）：返回更新后的全局配置（敏感字段可掩码，如 `api_key` 返回 `"***"`）
+**响应**（200 OK）：
+
+```json
+{
+  "code": 0,
+  "data": { "api_key_enabled": true, "api_key": "***", "admin_password": "***", ... },
+  "msg": ""
+}
+```
+
+敏感字段掩码返回。
 
 ---
 
@@ -446,25 +519,29 @@ data: [DONE]
 
 ```json
 {
-  "total": 152,
-  "page": 1,
-  "size": 20,
-  "data": [
-    {
-      "id": "log_xxx",
-      "timestamp": "2025-06-03T10:30:00Z",
-      "client_ip": "127.0.0.1",
-      "virtual_model": "gpt-3.5-turbo",
-      "actual_backend": "http://10.0.0.1:11434",
-      "actual_model": "llama3:7b",
-      "status_code": 200,
-      "duration_ms": 1245,
-      "prompt_tokens": 45,
-      "completion_tokens": 78,
-      "stream": false,
-      "error_message": null
-    }
-  ]
+  "code": 0,
+  "data": {
+    "total": 152,
+    "page": 1,
+    "size": 20,
+    "items": [
+      {
+        "id": "log_xxx",
+        "timestamp": "2025-06-03T10:30:00Z",
+        "client_ip": "127.0.0.1",
+        "virtual_model": "gpt-3.5-turbo",
+        "actual_backend": "http://10.0.0.1:11434",
+        "actual_model": "llama3:7b",
+        "status_code": 200,
+        "duration_ms": 1245,
+        "prompt_tokens": 45,
+        "completion_tokens": 78,
+        "stream": false,
+        "error_message": null
+      }
+    ]
+  },
+  "msg": ""
 }
 ```
 
@@ -476,24 +553,28 @@ data: [DONE]
 
 ```json
 {
-  "id": "log_xxx",
-  "timestamp": "2025-06-03T10:30:00Z",
-  "client_ip": "127.0.0.1",
-  "virtual_model": "gpt-3.5-turbo",
-  "actual_backend": "http://10.0.0.1:11434",
-  "actual_model": "llama3:7b",
-  "request": {
-    "method": "POST",
-    "path": "/v1/chat/completions",
-    "headers": { "user-agent": "..." },
-    "body": { ... }        // 可能截断
+  "code": 0,
+  "data": {
+    "id": "log_xxx",
+    "timestamp": "2025-06-03T10:30:00Z",
+    "client_ip": "127.0.0.1",
+    "virtual_model": "gpt-3.5-turbo",
+    "actual_backend": "http://10.0.0.1:11434",
+    "actual_model": "llama3:7b",
+    "request": {
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "headers": { "user-agent": "..." },
+      "body": { ... }        // 可能截断
+    },
+    "response": {
+      "status_code": 200,
+      "body_preview": "..."  // 前 500 字符
+    },
+    "duration_ms": 1245,
+    "error_message": null
   },
-  "response": {
-    "status_code": 200,
-    "body_preview": "..."  // 前 500 字符
-  },
-  "duration_ms": 1245,
-  "error_message": null
+  "msg": ""
 }
 ```
 
@@ -511,18 +592,22 @@ data: [DONE]
 
 ```json
 {
-  "status": "ok",
-  "version": "1.0.0",
-  "uptime_seconds": 3600,
-  "ollama_nodes": {
-    "total": 2,
-    "healthy": 1,
-    "unhealthy": 1
-  }
+  "code": 0,
+  "data": {
+    "status": "ok",
+    "version": "1.0.0",
+    "uptime_seconds": 3600,
+    "ollama_nodes": {
+      "total": 2,
+      "healthy": 1,
+      "unhealthy": 1
+    }
+  },
+  "msg": ""
 }
 ```
 
-若服务有严重问题（如数据库错误），返回 503。
+若服务有严重问题（如数据库错误）：`{"code": 500, "data": null, "msg": "Database error"}`
 
 ---
 
@@ -536,18 +621,22 @@ data: [DONE]
 
 ```json
 {
-  "total_requests": 1250,
-  "requests_last_hour": 42,
-  "avg_duration_ms": 1340,
-  "total_tokens": 158200,
-  "model_breakdown": [
-    { "virtual_model": "gpt-3.5-turbo", "count": 800, "avg_duration_ms": 1200 },
-    { "virtual_model": "claude-instant", "count": 450, "avg_duration_ms": 1500 }
-  ],
-  "backend_breakdown": [
-    { "url": "http://10.0.0.1:11434", "count": 700, "healthy": true },
-    { "url": "http://10.0.0.2:11434", "count": 550, "healthy": false }
-  ]
+  "code": 0,
+  "data": {
+    "total_requests": 1250,
+    "requests_last_hour": 42,
+    "avg_duration_ms": 1340,
+    "total_tokens": 158200,
+    "model_breakdown": [
+      { "virtual_model": "gpt-3.5-turbo", "count": 800, "avg_duration_ms": 1200 },
+      { "virtual_model": "claude-instant", "count": 450, "avg_duration_ms": 1500 }
+    ],
+    "backend_breakdown": [
+      { "url": "http://10.0.0.1:11434", "count": 700, "healthy": true },
+      { "url": "http://10.0.0.2:11434", "count": 550, "healthy": false }
+    ]
+  },
+  "msg": ""
 }
 ```
 
@@ -600,30 +689,35 @@ data: [DONE]
 
 ## 四、错误码规范
 
+### 4.1 OpenAI 兼容接口
+
+HTTP 状态码携带语义，错误响应遵循 OpenAI 标准格式：
+
 | HTTP 状态码 | 说明 |
 |------------|------|
 | 200 | OK |
-| 201 | Created |
-| 204 | No Content |
 | 400 | 请求参数错误（如无效 JSON、缺少必填字段） |
-| 401 | 未认证（OpenAI 接口：API Key 无效或缺失；管理接口：未登录或 Session 过期） |
-| 404 | 请求的资源不存在（如节点 ID 不存在） |
-| 409 | 资源冲突（如重复添加相同 URL 的节点） |
-| 422 | 语义错误 |
+| 401 | API Key 无效或缺失 |
+| 404 | 模型不存在 |
 | 500 | 代理服务内部错误 |
 | 502 | 选中的 Ollama 后端返回无效响应 |
-| 503 | 所有可用后端均不可达，或模型映射为空 |
+| 503 | 所有可用后端均不可达 |
 | 504 | 后端超时 |
 
-对于 OpenAI 兼容节点，错误响应格式遵循 OpenAI 的 `error` 对象结构。对于管理节点，可简化：
+### 4.2 管理接口
 
-```json
-{
-  "error": "Description of error",
-  "code": 400,
-  "details": {}
-}
-```
+管理接口 HTTP 状态码始终为 200，通过响应体 `code` 字段区分业务状态：
+
+| code | 说明 |
+|------|------|
+| 0 | 成功 |
+| 400 | 请求参数错误（如无效 JSON、缺少必填字段） |
+| 401 | 未登录或 Session 过期 |
+| 404 | 资源不存在（如节点 ID 不存在） |
+| 409 | 资源冲突（如重复添加相同 URL 的节点） |
+| 422 | 语义错误 |
+| 500 | 服务内部错误 |
+| 503 | 外部服务不可用（如 Ollama 节点不可达） |
 
 ---
 

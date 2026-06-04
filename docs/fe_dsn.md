@@ -275,21 +275,29 @@ App
 创建 `api.js` 模块，基于 Axios 实例：
 
 ```js
-// 管理接口客户端（Cookie Session 认证）
+// 管理接口客户端（Cookie Session 认证，统一响应格式）
 const apiClient = axios.create({
   baseURL: '/api',
   timeout: 10000,
   withCredentials: true,  // 自动携带 Cookie
 });
 
-// 401 时跳转登录页
+// 响应拦截器：解包统一格式，处理业务错误
 apiClient.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401 && !window.location.pathname.startsWith('/login')) {
-      window.location.href = '/login';
+  (res) => {
+    const { code, data, msg } = res.data;
+    if (code !== 0) {
+      // 未登录 → 跳转登录页
+      if (code === 401 && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
+      return Promise.reject({ code, message: msg });
     }
-    return Promise.reject(err);
+    return data;  // 直接返回 data 字段
+  },
+  (err) => {
+    // 网络错误等非业务异常
+    return Promise.reject({ code: -1, message: err.message });
   }
 );
 
