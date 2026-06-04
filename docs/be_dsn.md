@@ -583,42 +583,11 @@ host,link,domain,title,ip,port,country
     "api_key_enabled": false,
     "api_key": "sk-xxxx",               // OpenAI 兼容接口的 API Key（仅当 enabled 为 true 时返回，可掩码）
     "admin_password": "***",            // 管理接口登录密码（始终掩码返回）
-    "default_passthrough": true,        // 未映射时是否尝试同名透传
     "request_timeout": 60,              // Ollama 请求超时（秒）
-    "max_retries": 2                    // 随机转发失败后的最大重试次数
   },
   "msg": ""
 }
 ```
-
-#### 2.4.2 更新全局配置
-
-**节点**：`POST /api/config`
-
-**请求体**：
-
-```json
-{
-  "api_key_enabled": true,
-  "api_key": "sk-new-secret",
-  "admin_password": "new-admin-password",
-  "default_passthrough": false,
-  "request_timeout": 30,
-  "max_retries": 2
-}
-```
-
-**响应**（200 OK）：
-
-```json
-{
-  "code": 0,
-  "data": { "api_key_enabled": true, "api_key": "***", "admin_password": "***", ... },
-  "msg": ""
-}
-```
-
-敏感字段掩码返回。
 
 ---
 
