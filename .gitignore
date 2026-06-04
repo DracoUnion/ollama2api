@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Flask / SQLite
+*.db
+*.sqlite3
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Node / React
+node_modules/
+frontend/build/
+frontend/dist/
+.npm
+.eslintcache
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
