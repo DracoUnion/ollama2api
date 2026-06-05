@@ -7,7 +7,7 @@ import requests
 from flask import Blueprint, request, Response
 
 from views.common import success
-from models import Session, Mapping, MappingList, Node, NodeModel
+from models import Session, Mapping, Node, NodeModel
 from views.exceptions import (
     BadRequestError, NotFoundError, ConflictError,
     BadGatewayError
