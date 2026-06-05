@@ -3,6 +3,7 @@ import config
 from views.error_handler import register_error_handlers
 from views.nodes import nodes_bp
 from views.mapping import mapping_bp
+from views.other import other_bp
 from models import init_db
 
 app = Flask(__name__)
@@ -14,6 +15,7 @@ register_error_handlers(app)
 # 注册蓝图
 app.register_blueprint(nodes_bp)
 app.register_blueprint(mapping_bp)
+app.register_blueprint(other_bp)
 
 
 @app.route("/")
