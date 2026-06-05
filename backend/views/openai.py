@@ -174,6 +174,8 @@ def create_completion():
 
         # 流式返回
         if stream:
+            client_ip = request.remote_addr or ""
+
             def generate():
                 full_response = ""
                 for line in ollama_response.iter_lines():
@@ -188,7 +190,7 @@ def create_completion():
                 with Session() as log_db:
                     record_log(
                         log_db,
-                        client_ip=request.remote_addr or "",
+                        client_ip=client_ip,
                         virtual_model=model,
                         actual_backend=node.url,
                         actual_model=actual_model,
@@ -328,6 +330,8 @@ def create_chat_completion():
 
         # 流式返回
         if stream:
+            client_ip = request.remote_addr or ""
+
             def generate():
                 full_response = ""
                 for line in ollama_response.iter_lines():
@@ -341,7 +345,7 @@ def create_chat_completion():
                 with Session() as log_db:
                     record_log(
                         log_db,
-                        client_ip=request.remote_addr or "",
+                        client_ip=client_ip,
                         virtual_model=model,
                         actual_backend=node.url,
                         actual_model=actual_model,
