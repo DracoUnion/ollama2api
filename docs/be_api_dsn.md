@@ -295,28 +295,6 @@ data: [DONE]
 - URL 格式无效：`{"code": 400, "data": null, "msg": "Invalid URL format"}`
 - URL 已存在：`{"code": 409, "data": null, "msg": "URL already exists"}`
 
-#### 2.2.3 更新节点
-
-**节点**：`PUT /api/nodes/<node_id>`
-
-**请求体**（所有字段可选）：
-
-```json
-{
-  "url": "http://10.0.0.3:11434/new",
-  "enabled": false
-}
-```
-
-**响应**（200 OK）：
-
-```json
-{
-  "code": 0,
-  "data": { "id": "ep_1", "url": "...", "enabled": false, "healthy": true, "models": [...], ... },
-  "msg": ""
-}
-```
 
 #### 2.2.4 删除节点
 
@@ -567,27 +545,6 @@ host,link,domain,title,ip,port,country
 ```
 
 ---
-
-### 2.4 全局配置
-
-#### 2.4.1 获取全局配置
-
-**节点**：`GET /api/config`
-
-**响应**（200 OK）：
-
-```json
-{
-  "code": 0,
-  "data": {
-    "api_key_enabled": false,
-    "api_key": "sk-xxxx",               // OpenAI 兼容接口的 API Key（仅当 enabled 为 true 时返回，可掩码）
-    "admin_password": "***",            // 管理接口登录密码（始终掩码返回）
-    "request_timeout": 60,              // Ollama 请求超时（秒）
-  },
-  "msg": ""
-}
-```
 
 ---
 

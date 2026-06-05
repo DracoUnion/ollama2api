@@ -68,6 +68,31 @@ class ModelMapping(Base):
         }
 
 
+class Mapping(Base):
+    """模型映射"""
+    __tablename__ = "mappings"
+
+    id = Column(String(64), primary_key=True, comment="映射ID")
+    src_model = Column(String(255), nullable=False, comment="源模型名（虚拟模型名）")
+    dst_model = Column(String(255), nullable=False, comment="目标模型名（实际模型名）")
+    created_at = Column(DateTime, nullable=False, default=datetime.now, comment="创建时间")
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now, comment="更新时间")
+
+    def __repr__(self):
+        return f"<Mapping(id='{self.id}', src='{self.src_model}', dst='{self.dst_model}')>"
+
+    def to_dict(self):
+        result = {
+            "id": self.id,
+            "src_model": self.src_model,
+            "dst_model": self.dst_model,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        return result
+
+
+
 class RequestLog(Base):
     """请求日志"""
     __tablename__ = "request_logs"
