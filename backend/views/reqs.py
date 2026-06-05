@@ -100,27 +100,3 @@ class MappingUpdateRequest(BaseModel):
         return v.strip() if v else v
 
 
-class MappingListCreateRequest(BaseModel):
-    """创建映射列表项请求"""
-    dst_node_id: str = Field(..., description="目标节点ID")
-    weight: int = Field(1, ge=1, description="权重")
-    enabled: bool = Field(True, description="是否启用")
-
-    @validator("dst_node_id")
-    def validate_dst_node_id(cls, v):
-        if not v or not v.strip():
-            raise ValueError("dst_node_id 不能为空")
-        return v.strip()
-
-
-class MappingListUpdateRequest(BaseModel):
-    """更新映射列表项请求"""
-    dst_node_id: Optional[str] = Field(None, description="目标节点ID")
-    weight: Optional[int] = Field(None, ge=1, description="权重")
-    enabled: Optional[bool] = Field(None, description="是否启用")
-
-    @validator("dst_node_id")
-    def validate_dst_node_id(cls, v):
-        if v is not None and (not v or not v.strip()):
-            raise ValueError("dst_node_id 不能为空")
-        return v.strip() if v else v

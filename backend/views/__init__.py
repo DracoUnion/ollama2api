@@ -15,8 +15,7 @@ from .auth import check_auth, require_auth
 from .common import success, error, generate_node_id, call_ollama_tags
 from .reqs import (
     NodeCreateRequest, NodeUpdateRequest, NodePullRequest,
-    MappingCreateRequest, MappingUpdateRequest,
-    MappingListCreateRequest, MappingListUpdateRequest
+    MappingCreateRequest, MappingUpdateRequest
 )
 from .nodes import nodes_bp
 from .mapping import mapping_bp
@@ -42,8 +41,6 @@ __all__ = [
     "NodePullRequest",
     "MappingCreateRequest",
     "MappingUpdateRequest",
-    "MappingListCreateRequest",
-    "MappingListUpdateRequest",
     "nodes_bp",
     "mapping_bp"
 ]

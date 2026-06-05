@@ -1,43 +1,14 @@
 """映射管理视图"""
 
-import uuid
-from datetime import datetime
-
-import requests
-from flask import Blueprint, request, Response
+from flask import Blueprint, request
 
 from views.common import success
-from models import Session, Mapping, Node, NodeModel
-from views.exceptions import (
-    BadRequestError, NotFoundError, ConflictError,
-    BadGatewayError
-)
+from models import Session, ModelMapping
+from views.exceptions import BadRequestError, NotFoundError, ConflictError
 from views.auth import require_auth
-from views.reqs import (
-    MappingCreateRequest, MappingUpdateRequest,
-    MappingListCreateRequest, MappingListUpdateRequest
-)
+from views.reqs import MappingCreateRequest, MappingUpdateRequest
 
 mapping_bp = Blueprint("mapping", __name__, url_prefix="/api/mapping")
-
-# SSE 客户端列表
-sse_clients = []
-
-
-def generate_mapping_id() -> str:
-    """生成映射 ID"""
-    return f"mp_{uuid.uuid4().hex[:8]}"
-
-
-def generate_list_id() -> str:
-    """生成列表项 ID"""
-    return f"ml_{uuid.uuid4().hex[:8]}"
-
-
-
-
-# ==================== SSE 同步端点 ====================
-
 
 
 # ==================== 映射 CRUD ====================
@@ -61,26 +32,21 @@ def create_mapping():
     db = Session()
 
     # 检查 src_model 是否已存在
-    existing = db.query(Mapping).filter(Mapping.src_model == req.src_model).first()
+    existing = db.query(ModelMapping).filter(ModelMapping.virtual_name == req.src_model).first()
     if existing:
         raise ConflictError(f"源模型 '{req.src_model}' 已存在映射")
 
     # 创建映射
-    mapping = Mapping(
-        id=generate_mapping_id(),
-        src_model=req.src_model,
-        dst_model=req.dst_model,
-        created_at=datetime.now(),
-        updated_at=datetime.now()
+    mapping = ModelMapping(
+        virtual_name=req.src_model,
+        actual_model_name=req.dst_model
     )
 
     db.add(mapping)
     db.commit()
     db.refresh(mapping)
 
-    result = mapping.to_dict()
-
-    return success(result)
+    return success(mapping.to_dict())
 
 
 @mapping_bp.route("", methods=["GET"])
@@ -103,14 +69,14 @@ def list_mappings():
 
     db = Session()
 
-    query = db.query(Mapping)
+    query = db.query(ModelMapping)
 
     if keyword:
-        query = query.filter(Mapping.src_model.ilike(f"%{keyword}%"))
+        query = query.filter(ModelMapping.virtual_name.ilike(f"%{keyword}%"))
 
     total = query.count()
 
-    mappings = query.order_by(Mapping.created_at.desc()).offset((page - 1) * size).limit(size).all()
+    mappings = query.order_by(ModelMapping.virtual_name).offset((page - 1) * size).limit(size).all()
 
     items = [m.to_dict() for m in mappings]
 
@@ -122,37 +88,70 @@ def list_mappings():
     })
 
 
-@mapping_bp.route("/<mapping_id>", methods=["GET"])
+@mapping_bp.route("/<path:src_model>", methods=["GET"])
 @require_auth
-def get_mapping(mapping_id):
+def get_mapping(src_model):
     """
     获取映射详情
 
     路径参数:
-    - mapping_id: 映射 ID
+    - src_model: 源模型名（虚拟模型名）
     """
     db = Session()
 
-    mapping = db.query(Mapping).filter(Mapping.id == mapping_id).first()
+    mapping = db.query(ModelMapping).filter(ModelMapping.virtual_name == src_model).first()
     if not mapping:
         raise NotFoundError("映射不存在")
 
     return success(mapping.to_dict())
 
 
-
-@mapping_bp.route("/<mapping_id>", methods=["DELETE"])
+@mapping_bp.route("/<path:src_model>", methods=["PUT"])
 @require_auth
-def delete_mapping(mapping_id):
+def update_mapping(src_model):
+    """
+    更新映射
+
+    路径参数:
+    - src_model: 源模型名（虚拟模型名）
+
+    请求体:
+    - dst_model: 目标模型名（实际模型名，必填）
+    """
+    data = request.get_json()
+    if not data:
+        raise BadRequestError("请求体必须是 JSON")
+
+    req = MappingUpdateRequest(**data)
+
+    db = Session()
+
+    mapping = db.query(ModelMapping).filter(ModelMapping.virtual_name == src_model).first()
+    if not mapping:
+        raise NotFoundError("映射不存在")
+
+    # 更新字段
+    if req.dst_model is not None:
+        mapping.actual_model_name = req.dst_model
+
+    db.commit()
+    db.refresh(mapping)
+
+    return success(mapping.to_dict())
+
+
+@mapping_bp.route("/<path:src_model>", methods=["DELETE"])
+@require_auth
+def delete_mapping(src_model):
     """
     删除映射
 
     路径参数:
-    - mapping_id: 映射 ID
+    - src_model: 源模型名（虚拟模型名）
     """
     db = Session()
 
-    mapping = db.query(Mapping).filter(Mapping.id == mapping_id).first()
+    mapping = db.query(ModelMapping).filter(ModelMapping.virtual_name == src_model).first()
     if not mapping:
         raise NotFoundError("映射不存在")
 
@@ -160,4 +159,3 @@ def delete_mapping(mapping_id):
     db.commit()
 
     return success(None)
-
