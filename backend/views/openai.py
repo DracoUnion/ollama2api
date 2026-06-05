@@ -1,5 +1,6 @@
 """OpenAI 兼容 API 视图"""
 
+import random
 import time
 import uuid
 from datetime import datetime
@@ -54,16 +55,17 @@ def resolve_model(db, model_name):
     return model_name
 
 
-def select_node(db):
+def select_node(db, model_name):
     """选择可用节点"""
-    nodes = db.query(Node).filter(
+    nodes = db.query(Node).join(NodeModel).filter(
         Node.enabled == True,
-        Node.healthy == True
+        Node.healthy == True,
+        NodeModel.model_name == model_name,
     ).all()
     if not nodes:
         raise NotFoundError("没有可用的健康节点")
     # 简化版：选择第一个健康节点
-    return nodes[0]
+    return random.choice(nodes)
 
 
 def generate_log_id():
@@ -149,7 +151,7 @@ def create_completion():
     actual_model = resolve_model(db, model)
 
     # 选择节点
-    node = select_node(db)
+    node = select_node(db, actual_model)
 
     start_time = time.time()
 
@@ -303,7 +305,7 @@ def create_chat_completion():
     actual_model = resolve_model(db, model)
 
     # 选择节点
-    node = select_node(db)
+    node = select_node(db, actual_model)
 
     start_time = time.time()
 
