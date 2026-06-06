@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 import requests
 from flask import Blueprint, request, Response
 
+from config import REQUEST_CONN_TIMEOUT, REQUEST_READ_TIMEOUT
 from views.common import success, generate_node_id, call_ollama_tags
 from models import Node, NodeModel, Session
 from views.exceptions import (
@@ -227,7 +228,7 @@ def pull_model(node_id):
     ollama_response = requests.post(
         f"{node.url}/api/pull",
         json={"model": req.model_name, "stream": req.stream},
-        timeout=300,
+        timeout=(REQUEST_CONN_TIMEOUT, REQUEST_READ_TIMEOUT),
         stream=req.stream
     )
     ollama_response.raise_for_status()
