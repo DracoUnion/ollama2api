@@ -4,6 +4,7 @@ import random
 import time
 import uuid
 from datetime import datetime
+import traceback
 
 import requests as http_requests
 from flask import Blueprint, request, Response, jsonify
@@ -21,6 +22,7 @@ openai_bp = Blueprint("openai", __name__, url_prefix="/v1")
 @openai_bp.errorhandler(Exception)
 def handle_openai_error(e):
     """OpenAI 兼容格式的异常处理"""
+    traceback.print_exc()
     from views.exceptions import AppError
 
     if isinstance(e, AppError):
@@ -358,8 +360,8 @@ def create_chat_completion():
         return jsonify(openai_result)
 
     except http_requests.exceptions.RequestException as e:
+        traceback.print_exc()
         duration_ms = int((time.time() - start_time) * 1000)
-
         # 记录错误日志
         record_log(
             db,
@@ -444,3 +446,4 @@ def ollama_res_to_openai_res(result, model):
             "total_tokens": usage.get("prompt_eval_count", 0) + usage.get("eval_count", 0)
         }
     }
+    return openai_result
