@@ -330,68 +330,14 @@ def create_chat_completion():
 
         # 流式返回
         if stream:
-            client_ip = request.remote_addr or ""
-
-            def generate():
-                full_response = ""
-                for line in ollama_response.iter_lines():
-                    if line:
-                        chunk = line.decode("utf-8")
-                        full_response += chunk
-                        yield f"data: {chunk}\n\n"
-                yield "data: [DONE]\n\n"
-
-                # 记录日志
-                with Session() as log_db:
-                    record_log(
-                        log_db,
-                        client_ip=client_ip,
-                        virtual_model=model,
-                        actual_backend=node.url,
-                        actual_model=actual_model,
-                        status_code=200,
-                        duration_ms=duration_ms,
-                        stream=True,
-                        request_body=str(data)[:1000],
-                        response_preview=full_response[:500]
-                    )
-
-            return Response(
-                generate(),
-                content_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "X-Accel-Buffering": "no"
-                }
+            return build_stream_resp(
+                ollama_response, model, node, 
+                actual_model, duration_ms, data
             )
 
         # 同步返回
         result = ollama_response.json()
-
-        # 转换为 OpenAI 格式
-        message = result.get("message", {})
-        usage = result.get("usage", {})
-        openai_result = {
-            "id": f"chatcmpl-{uuid.uuid4().hex[:8]}",
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {
-                        "role": message.get("role", "assistant"),
-                        "content": message.get("content", "")
-                    },
-                    "finish_reason": "stop" if result.get("done") else "length"
-                }
-            ],
-            "usage": {
-                "prompt_tokens": usage.get("prompt_eval_count", 0),
-                "completion_tokens": usage.get("eval_count", 0),
-                "total_tokens": usage.get("prompt_eval_count", 0) + usage.get("eval_count", 0)
-            }
-        }
+        openai_result = ollama_res_to_openai_res(result, model)
 
         # 记录日志
         record_log(
@@ -406,7 +352,7 @@ def create_chat_completion():
             completion_tokens=openai_result["usage"]["completion_tokens"],
             stream=False,
             request_body=str(data)[:1000],
-            response_preview=message.get("content", "")[:500]
+            response_preview=result.get("message", {}).get("content", "")[:500]
         )
 
         return jsonify(openai_result)
@@ -429,3 +375,72 @@ def create_chat_completion():
         )
 
         raise BadGatewayError(f"后端服务错误: {str(e)}")
+
+def build_stream_resp(
+    ollama_response,
+    model,
+    node,
+    actual_model,
+    duration_ms,
+    data,
+):
+    client_ip = request.remote_addr or ""
+
+    def generate():
+        full_response = ""
+        for line in ollama_response.iter_lines():
+            if line:
+                chunk = line.decode("utf-8")
+                full_response += chunk
+                yield f"data: {chunk}\n\n"
+        yield "data: [DONE]\n\n"
+
+        # 记录日志
+        with Session() as log_db:
+            record_log(
+                log_db,
+                client_ip=client_ip,
+                virtual_model=model,
+                actual_backend=node.url,
+                actual_model=actual_model,
+                status_code=200,
+                duration_ms=duration_ms,
+                stream=True,
+                request_body=str(data)[:1000],
+                response_preview=full_response[:500]
+            )
+
+    return Response(
+        generate(),
+        content_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+def ollama_res_to_openai_res(result, model):
+    # 转换为 OpenAI 格式
+    message = result.get("message", {})
+    usage = result.get("usage", {})
+    openai_result = {
+        "id": f"chatcmpl-{uuid.uuid4().hex[:8]}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": message.get("role", "assistant"),
+                    "content": message.get("content", "")
+                },
+                "finish_reason": "stop" if result.get("done") else "length"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": usage.get("prompt_eval_count", 0),
+            "completion_tokens": usage.get("eval_count", 0),
+            "total_tokens": usage.get("prompt_eval_count", 0) + usage.get("eval_count", 0)
+        }
+    }
